@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "track"
+version = "0.1.0"
+description = "Motion tracking with active_adaptation v0.4.0"
+authors = [
+    { name="Your Name", email="your.email@example.com" }
+]
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+dependencies = [
+    "joblib"
+]
+
+[tool.setuptools]
+packages = ["track"]
+
+[project.entry-points."active_adaptation.projects"]
+track = "track"

@@ -1,0 +1,116 @@
+# @package task
+project: track
+name: Motion
+
+viewer:
+  resolution: [1280, 720]
+  lookat: [0., 0., 0.]
+  eye: [2.0, 2.0, 1.0]
+
+robot: 
+  name: g1_29dof_nohand
+terrain: plane
+
+num_envs: 4096
+max_episode_length: 10000
+
+sim:
+  step_dt: 0.02
+  isaac_physics_dt: 0.005
+  mujoco_physics_dt: 0.002
+
+input:
+  action:
+    _target_: active_adaptation.envs.mdp.action.JointPosition
+    action_scaling:
+      .*hip.*: 0.5
+      .*knee.*: 0.5
+      .*ankle.*: 0.5
+      waist_yaw_joint: 0.5
+      .*shoulder.*: 0.5
+      .*elbow.*: 0.5
+      .*wrist.*: 0.5
+    max_delay: 1
+
+command:
+  class: MotionLibG1
+  dataset: sfu_29dof
+  occlusion: "amass_copycat_occlusion_v3.pkl"
+
+observation:
+  policy:
+    root_quat_w:          {}
+    root_angvel_b:        {noise_std: 0.05}
+    projected_gravity_b:  {noise_std: 0.01}
+    joint_pos:            {noise_std: 0.05}
+    joint_vel:            {noise_std: 0.2}
+    prev_actions:         {steps: 1}
+    body_pos_b:           {body_names: [left_hip_pitch_link, right_hip_pitch_link, 
+                                        left_knee_link, right_knee_link, 
+                                        left_ankle_roll_link, right_ankle_roll_link, 
+                                        left_shoulder_roll_link, right_shoulder_roll_link, 
+                                        left_elbow_link, right_elbow_link, 
+                                        left_wrist_yaw_link, right_wrist_yaw_link],
+                                        yaw_only: false}
+    ref_root_quat:        {}
+    ref_kp_pos_gap:       {}
+  # priv:
+  #   ref_qpos:             {}
+  #   ref_kp_pos_gap:       {}
+  #   ref_kp_quat:          {}
+  #   root_height:      {}
+  #   root_linvel_b:    {}
+  #   body_vel:         {body_names: [left_hip_pitch_link, right_hip_pitch_link, 
+  #                                   left_knee_link, right_knee_link, 
+  #                                   left_ankle_roll_link, right_ankle_roll_link, 
+  #                                   left_shoulder_roll_link, right_shoulder_roll_link, 
+  #                                   left_elbow_link, right_elbow_link, 
+  #                                   left_wrist_yaw_link, right_wrist_yaw_link], 
+  #                                   yaw_only: false}
+
+reward:
+  loco:
+    tracking_anchor_pos:    {weight: 1.0}
+    tracking_anchor_quat:   {weight: 1.0}
+    tracking_qpos:          {weight: 1.0}
+    tracking_kp_pos:        {weight: 2.0}
+    tracking_kp_quat:       {weight: 2.0}
+    tracking_kp_lin_vel:    {weight: 2.0}
+    tracking_kp_ang_vel:    {weight: 2.0}
+
+    feet_slip:          {weight: 1.0, body_names: .*ankle_roll_link}
+
+    action_rate_l2:     {weight: 0.2}
+
+randomization:
+  push:
+    body_names: ["torso_link", "pelvis"]
+    force_range: [0.0, 0.1]
+  perturb_body_mass:
+    ".*wrist_yaw_link": [1.0, 2.0]
+    "^(?!.*wrist_yaw_link).*": [0.9, 1.1]
+    # .*: [0.9, 1.1]
+  perturb_body_materials:
+    body_names: ".*ankle_roll_link"
+    static_friction_range: [0.3, 4.0]
+    dynamic_friction_range: [0.3, 4.0]
+    restitution_range: [0.0, 0.2]
+  motor_params:
+    stiffness_range:
+      .*: [0.8, 1.1]
+    damping_range:
+      .*: [0.8, 1.1]
+    armature_range:
+      .*: [0.0, 0.01]
+  reset_joint_states_uniform:
+    pos_ranges:
+      .*: [-0.1, 0.1]
+    rel: true
+
+termination:
+  success: {}
+  root_deviation: {max_distance: 0.4}
+  root_rot_deviation: {threshold: 0.8}
+  track_kp_error: {threshold: 0.4, 
+                  body_names: [ left_wrist_yaw_link, right_wrist_yaw_link,
+                                left_ankle_roll_link, right_ankle_roll_link]}
