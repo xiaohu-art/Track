@@ -3,9 +3,16 @@ import joblib
 import torch
 from tqdm import tqdm
 from pathlib import Path
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict, Tuple
 
 from active_adaptation.envs.mdp.base import Command
+from isaaclab.utils.math import (
+    quat_from_euler_xyz,
+    quat_mul,
+    sample_uniform,
+    yaw_quat,
+)
+
 from typing_extensions import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -19,12 +26,18 @@ class MotionLib(Command):
             env,
             dataset: Union[List[str], str],
             occlusion: str,
+            pose_range: Dict[str, Tuple[float, float]],
+            joint_range: Tuple[float, float],
             anchor_body: Optional[str] = None,
             keypoint_body: Optional[List[str]] = None,
         ):
         super().__init__(env)
         self.robot = env.scene["robot"]
         self.env_origin = self.env.scene.env_origins
+
+        self.pose_range = pose_range
+        self.joint_range = joint_range
+
         self.anchor_body_index = self.robot.find_bodies(anchor_body)[0]
         self.keypoint_body_index = self.robot.find_bodies(keypoint_body)[0]
 
@@ -43,9 +56,9 @@ class MotionLib(Command):
             dataset_data = {k.replace("_stageii", "_poses"): v for k, v in dataset_data.items()}
             dataset_data = {k: v for k, v in dataset_data.items() if k not in occlusion_keys}
 
-            first_key = list(dataset_data.keys())[0]
-            print(first_key)
-            dataset_data = {first_key: dataset_data[first_key]}
+            # first_key = list(dataset_data.keys())[0]
+            # print(first_key)
+            # dataset_data = {first_key: dataset_data[first_key]}
             
             data.update(dataset_data)
         
@@ -64,13 +77,12 @@ class MotionLib(Command):
     def _choose_start_frames(self, motion_ids: torch.Tensor) -> torch.Tensor:
         start_frames = self.start_frames[motion_ids]
 
-        # Bias towards earlier bins to diversify starting phases
-        motion_length = self.motion_length[motion_ids]
-        bin_size = 100
-        max_bins = ((motion_length - 1) // bin_size).clamp_min(0)
-        r = torch.rand_like(max_bins, dtype=torch.float32)
-        bin_ids = torch.floor(r * (max_bins.to(torch.float32) + 1.0)).to(torch.long)
-        start_frames += bin_ids * bin_size
+        # motion_length = self.motion_length[motion_ids]
+        # bin_size = 50
+        # max_bins = ((motion_length - 1) // bin_size).clamp_min(0)
+        # r = torch.rand_like(max_bins, dtype=torch.float32)
+        # bin_ids = torch.floor(r * (max_bins.to(torch.float32) + 1.0)).to(torch.long)
+        # start_frames += bin_ids * bin_size
         return start_frames
     
     def sample_init(self, env_ids: torch.Tensor) -> torch.Tensor:
@@ -82,13 +94,24 @@ class MotionLib(Command):
         self.episode_start_frames[env_ids] = start_frames
         self.episode_end_frames[env_ids] = end_frames
         
-        init_root_state = self.init_root_state[env_ids]     # (num_envs, 3 + 4 + 6) root position, root orientation, root linear velocity and root angular velocity
-        init_root_state[:, :3] = self.root_pos_w[start_frames].to(self.device) + self.env_origin[env_ids]
-        init_root_state[:, 3:7] = self.root_quat_w[start_frames].to(self.device)
-        init_root_state[:, 7:10] = self.root_lin_vel_w[start_frames].to(self.device)
-        init_root_state[:, 10:] = self.root_ang_vel_w[start_frames].to(self.device)
+        rand_pos_samples = sample_uniform(self.pose_range["x"][0], self.pose_range["x"][1], (env_ids.shape[0], 3), device=self.device)
+        init_root_pos_w = self.root_pos_w[start_frames].to(self.device) + self.env_origin[env_ids]
+        init_root_pos_w += rand_pos_samples
 
-        joint_pos = self.joint_pos[start_frames].to(self.device)
+        rand_quat_samples = sample_uniform(self.pose_range["roll"][0], self.pose_range["roll"][1], (env_ids.shape[0], 3), device=self.device)
+        orientation_delta = quat_from_euler_xyz(rand_quat_samples[:, 0], rand_quat_samples[:, 1], rand_quat_samples[:, 2])
+        init_root_quat_w = self.root_quat_w[start_frames].to(self.device)
+        init_root_quat_w = quat_mul(orientation_delta, init_root_quat_w)
+
+        init_root_state = self.init_root_state[env_ids]     # (num_envs, 3 + 4 + 6) root position, root orientation, root linear velocity and root angular velocity
+        init_root_state[:, :3] = init_root_pos_w
+        init_root_state[:, 3:7] = init_root_quat_w
+
+        random_joint_samples = sample_uniform(self.joint_range[0], self.joint_range[1], (env_ids.shape[0], self.robot.num_joints), device=self.device)
+        init_joint_pos = self.joint_pos[start_frames].to(self.device)
+        init_joint_pos += random_joint_samples
+
+        joint_pos = init_joint_pos
         joint_vel = self.joint_vel[start_frames].to(self.device)
         self.robot.write_joint_state_to_sim(
             joint_pos,
@@ -168,6 +191,8 @@ class MotionLibG1(MotionLib):
             env,
             dataset: List[str],
             occlusion: str,
+            pose_range: Dict[str, Tuple[float, float]],
+            joint_range: Tuple[float, float],
             anchor_body: str = "torso_link",
             keypoint_body: List[str] = [
                                         "pelvis",
@@ -183,6 +208,8 @@ class MotionLibG1(MotionLib):
             env,
             dataset,
             occlusion,
+            pose_range,
+            joint_range,
             anchor_body,
             keypoint_body,
         )

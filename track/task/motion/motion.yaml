@@ -8,11 +8,11 @@ viewer:
   eye: [2.0, 2.0, 1.0]
 
 robot: 
-  name: g1_29dof_nohand
+  name: g1_waist_unlocked
 terrain: plane
 
 num_envs: 4096
-max_episode_length: 10000
+max_episode_length: 1000
 
 sim:
   step_dt: 0.02
@@ -36,6 +36,28 @@ command:
   class: MotionLibG1
   dataset: sfu_29dof
   occlusion: "amass_copycat_occlusion_v3.pkl"
+  pose_range:
+    x: 
+      - -0.05
+      - 0.05
+    y: 
+      - -0.05
+      - 0.05
+    z: 
+      - -0.01
+      - 0.01
+    roll: 
+      - -0.1
+      - 0.1
+    pitch: 
+      - -0.1
+      - 0.1
+    yaw: 
+      - -0.2
+      - 0.2
+  joint_range: 
+    - -0.05
+    - 0.05
 
 observation:
   policy:
@@ -102,10 +124,6 @@ randomization:
       .*: [0.8, 1.1]
     armature_range:
       .*: [0.0, 0.01]
-  reset_joint_states_uniform:
-    pos_ranges:
-      .*: [-0.1, 0.1]
-    rel: true
 
 termination:
   success: {}

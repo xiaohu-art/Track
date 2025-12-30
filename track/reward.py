@@ -56,7 +56,7 @@ class tracking_anchor_pos(Reward[MotionLibG1]):
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
         ref_anchor_pos_w = self.command_manager.body_pos_w[timestep][:, self.anchor_body_index]
         ref_anchor_pos_w.add_(self.command_manager.env_origin[:, None])
-        anchor_pos_w = self.robot.data.body_pos_w[:, self.anchor_body_index]
+        anchor_pos_w = self.robot.data.body_link_pos_w[:, self.anchor_body_index]
         error = (anchor_pos_w - ref_anchor_pos_w).square().sum(-1)
         # reward = torch.exp(- error / self.sigma)
         reward = torch.exp(- error / self.env._adaptive_sigma["tracking_anchor_pos"])
@@ -73,7 +73,7 @@ class tracking_anchor_quat(Reward[MotionLibG1]):
     def compute(self) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
         ref_anchor_quat_w = self.command_manager.body_quat_w[timestep][:, self.anchor_body_index]
-        anchor_quat_w = self.robot.data.body_quat_w[:, self.anchor_body_index]
+        anchor_quat_w = self.robot.data.body_link_quat_w[:, self.anchor_body_index]
         error = (quat_error_magnitude(anchor_quat_w, ref_anchor_quat_w) ** 2)
         # reward = torch.exp(- error / self.sigma)
         reward = torch.exp(- error / self.env._adaptive_sigma["tracking_anchor_quat"])
@@ -109,7 +109,7 @@ class tracking_kp_pos(Reward[MotionLibG1]):
         ref_keypoints = self.command_manager.body_pos_w[timestep][:, self.keypoint_body_index]
         ref_keypoints.add_(self.command_manager.env_origin[:, None])
 
-        body_pos_global = self.robot.data.body_pos_w[:, self.keypoint_body_index]
+        body_pos_global = self.robot.data.body_link_pos_w[:, self.keypoint_body_index]
 
         error = (ref_keypoints - body_pos_global).square().sum(-1).mean(-1, True)
         # reward = torch.exp(- error / self.sigma)
@@ -128,7 +128,7 @@ class tracking_kp_quat(Reward[MotionLibG1]):
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
         ref_keypoints = self.command_manager.body_quat_w[timestep][:, self.keypoint_body_index]
 
-        body_quat_w = self.robot.data.body_quat_w[:, self.keypoint_body_index]
+        body_quat_w = self.robot.data.body_link_quat_w[:, self.keypoint_body_index]
         error = (quat_error_magnitude(body_quat_w, ref_keypoints) ** 2).mean(-1, True)
 
         reward = torch.exp(- error / self.env._adaptive_sigma["tracking_kp_quat"])

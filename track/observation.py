@@ -21,13 +21,15 @@ class ref_root_quat(Observation[MotionLibG1]):
     def __init__(self, env):
         super().__init__(env)
         self.robot = self.command_manager.robot
-        self.ref_root_quat = self.command_manager.root_quat_w
 
     def compute(self):  
         current_frames = self.command_manager.episode_start_frames + self.env.episode_length_buf
         current_frames = torch.min(current_frames, self.command_manager.episode_end_frames - 1)
-        ref_root_quat = self.ref_root_quat[current_frames]
-        return ref_root_quat.reshape(self.num_envs, -1)
+        ref_root_quat_w = self.command_manager.root_quat_w[current_frames]
+        root_quat_w = self.robot.data.root_quat_w
+        
+        quat_error = quat_mul(quat_inv(root_quat_w), ref_root_quat_w)
+        return quat_error.reshape(self.num_envs, -1)
 
 class ref_qpos(Observation[MotionLibG1]):
     def __init__(self, env, joint_names=".*"):
@@ -58,8 +60,8 @@ class ref_kp_pos_gap(Observation[MotionLibG1]):
         ref_kp_pos.add_(self.command_manager.env_origin[:, None])
         ref_kp_quat = self.ref_kp_quat[current_frames]
 
-        body_kp_pos = self.robot.data.body_pos_w[:, self.keypoint_body_index]
-        body_kp_quat = self.robot.data.body_quat_w[:, self.keypoint_body_index]
+        body_kp_pos = self.robot.data.body_link_pos_w[:, self.keypoint_body_index]
+        body_kp_quat = self.robot.data.body_link_quat_w[:, self.keypoint_body_index]
 
         pos, _ = subtract_frame_transforms(body_kp_pos, body_kp_quat, ref_kp_pos, ref_kp_quat)
         return pos.reshape(self.num_envs, -1)
@@ -80,8 +82,8 @@ class ref_kp_quat(Observation[MotionLibG1]):
         ref_kp_pos.add_(self.command_manager.env_origin[:, None])
         ref_kp_quat = self.ref_kp_quat[current_frames]
 
-        body_kp_pos = self.robot.data.body_pos_w[:, self.keypoint_body_index]
-        body_kp_quat = self.robot.data.body_quat_w[:, self.keypoint_body_index]
+        body_kp_pos = self.robot.data.body_link_pos_w[:, self.keypoint_body_index]
+        body_kp_quat = self.robot.data.body_link_quat_w[:, self.keypoint_body_index]
 
         _, quat = subtract_frame_transforms(body_kp_pos, body_kp_quat, ref_kp_pos, ref_kp_quat)
         return quat.reshape(self.num_envs, -1)

@@ -41,8 +41,10 @@ class root_rot_deviation(Termination[MotionLibG1]):
         ref_quat_w = self.command_manager.root_quat_w[timestep]
         root_quat_w = self.robot.data.root_quat_w
 
-        ref_projected_gravity_b = quat_apply_inverse(ref_quat_w, self.robot.data.GRAVITY_VEC_W)
-        projected_gravity_b = quat_apply_inverse(root_quat_w, self.robot.data.GRAVITY_VEC_W)
+        gravity_vec_w = torch.tensor([0., 0., -1.], device=self.device).repeat(self.num_envs, 1)
+
+        ref_projected_gravity_b = quat_apply_inverse(ref_quat_w, gravity_vec_w)
+        projected_gravity_b = quat_apply_inverse(root_quat_w, gravity_vec_w)
 
         diff = (projected_gravity_b[:, 2] - ref_projected_gravity_b[:, 2]).abs().unsqueeze(-1)
         return diff > self.threshold
@@ -59,7 +61,7 @@ class track_kp_error(Termination[MotionLibG1]):
         ref_keypoints = self.command_manager.body_pos_w[timestep][:, self.body_indices]
         ref_keypoints.add_(self.command_manager.env_origin[:, None])
 
-        body_pos_global = self.robot.data.body_pos_w[:, self.body_indices]
+        body_pos_global = self.robot.data.body_link_pos_w[:, self.body_indices]
 
         # diff = (ref_keypoints - body_pos_global).norm(dim=-1)    # (num_envs, num_bodies)
         # return diff.mean(-1, True) > self.threshold
