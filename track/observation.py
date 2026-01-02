@@ -13,9 +13,18 @@ from typing_extensions import TYPE_CHECKING
 
 from track.command import MotionLibG1
 
+def random_noise(x: torch.Tensor, std: float):
+    return x + torch.randn_like(x).clamp(-3., 3.) * std
+    
 class root_quat_w(Observation[MotionLibG1]):
+    def __init__(self, env, noise_std):
+        super().__init__(env)
+        self.noise_std = noise_std
+
     def compute(self) -> torch.Tensor:
-        return self.command_manager.robot.data.root_quat_w.reshape(self.num_envs, -1)
+        self.root_quat_w = self.command_manager.robot.data.root_quat_w
+        root_quat_w = random_noise(self.root_quat_w, self.noise_std)
+        return root_quat_w.reshape(self.num_envs, -1)
 
 class ref_root_quat(Observation[MotionLibG1]):
     def __init__(self, env):

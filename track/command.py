@@ -77,12 +77,12 @@ class MotionLib(Command):
     def _choose_start_frames(self, motion_ids: torch.Tensor) -> torch.Tensor:
         start_frames = self.start_frames[motion_ids]
 
-        # motion_length = self.motion_length[motion_ids]
-        # bin_size = 50
-        # max_bins = ((motion_length - 1) // bin_size).clamp_min(0)
-        # r = torch.rand_like(max_bins, dtype=torch.float32)
-        # bin_ids = torch.floor(r * (max_bins.to(torch.float32) + 1.0)).to(torch.long)
-        # start_frames += bin_ids * bin_size
+        motion_length = self.motion_length[motion_ids]
+        bin_size = 50
+        max_bins = ((motion_length - 1) // bin_size).clamp_min(0)
+        r = torch.rand_like(max_bins, dtype=torch.float32)
+        bin_ids = torch.floor(r * (max_bins.to(torch.float32) + 1.0)).to(torch.long)
+        start_frames += bin_ids * bin_size
         return start_frames
     
     def sample_init(self, env_ids: torch.Tensor) -> torch.Tensor:

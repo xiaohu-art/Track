@@ -12,7 +12,7 @@ robot:
 terrain: plane
 
 num_envs: 4096
-max_episode_length: 1000
+max_episode_length: 10000
 
 sim:
   step_dt: 0.02
@@ -23,14 +23,20 @@ input:
   action:
     _target_: active_adaptation.envs.mdp.action.JointPosition
     action_scaling:
-      .*hip.*: 0.5
-      .*knee.*: 0.5
-      .*ankle.*: 0.5
-      waist_yaw_joint: 0.5
-      .*shoulder.*: 0.5
-      .*elbow.*: 0.5
-      .*wrist.*: 0.5
-    max_delay: 1
+      .*hip_pitch.*: 0.548
+      .*hip_roll.*: 0.351
+      .*hip_yaw.*: 0.548
+      .*knee.*: 0.351
+      waist_yaw_joint: 0.541
+      # waist_roll_joint: 0.439
+      # waist_pitch_joint: 0.439
+      .*ankle.*: 0.439
+      .*shoulder.*: 0.173
+      .*elbow_joint: 0.173
+      .*wrist_roll.*: 0.173
+      .*wrist_pitch.*: 0.293
+      .*wrist_yaw.*: 0.293
+    max_delay: 2
 
 command:
   class: MotionLibG1
@@ -61,12 +67,12 @@ command:
 
 observation:
   policy:
-    root_quat_w:          {}
-    root_angvel_b:        {noise_std: 0.05}
-    projected_gravity_b:  {noise_std: 0.01}
-    joint_pos:            {noise_std: 0.05}
-    joint_vel:            {noise_std: 0.2}
-    prev_actions:         {steps: 1}
+    root_quat_w:          {noise_std: 0.05}
+    root_angvel_b:        {noise_std: 0.1}
+    gravity_multistep:    {steps: 4, noise_std: 0.05}
+    joint_pos_multistep:  {joint_names: "(?!(waist_roll_joint|waist_pitch_joint)).*", steps: 4, noise_std: 0.05}
+    joint_vel_multistep:  {joint_names: "(?!(waist_roll_joint|waist_pitch_joint)).*", steps: 4, noise_std: 0.2}
+    prev_actions:         {steps: 2}
     body_pos_b:           {body_names: [left_hip_pitch_link, right_hip_pitch_link, 
                                         left_knee_link, right_knee_link, 
                                         left_ankle_roll_link, right_ankle_roll_link, 
@@ -114,16 +120,14 @@ randomization:
     # .*: [0.9, 1.1]
   perturb_body_materials:
     body_names: ".*ankle_roll_link"
-    static_friction_range: [0.3, 4.0]
-    dynamic_friction_range: [0.3, 4.0]
+    static_friction_range: [0.2, 4.0]
+    dynamic_friction_range: [0.2, 4.0]
     restitution_range: [0.0, 0.2]
   motor_params:
     stiffness_range:
       .*: [0.8, 1.1]
     damping_range:
       .*: [0.8, 1.1]
-    armature_range:
-      .*: [0.0, 0.01]
 
 termination:
   success: {}
