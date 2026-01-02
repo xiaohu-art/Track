@@ -1,8 +1,0 @@
-pyproject.toml
-track/__init__.py
-track.egg-info/PKG-INFO
-track.egg-info/SOURCES.txt
-track.egg-info/dependency_links.txt
-track.egg-info/entry_points.txt
-track.egg-info/requires.txt
-track.egg-info/top_level.txt

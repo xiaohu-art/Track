@@ -16,7 +16,7 @@ class success(Termination[MotionLibG1]):
         current_frames = self.command_manager.episode_start_frames + self.env.episode_length_buf
         return (current_frames >= self.command_manager.episode_end_frames).unsqueeze(1)
 
-class root_deviation(Termination[MotionLibG1]):
+class root_z_deviation(Termination[MotionLibG1]):
     def __init__(self, env, max_distance: float = 0.4) -> None:
         super().__init__(env)
         self.max_distance = torch.tensor(max_distance, device=self.device)
@@ -27,7 +27,7 @@ class root_deviation(Termination[MotionLibG1]):
         ref_root_translation = self.command_manager.root_pos_w[timestep]
         ref_root_translation.add_(self.command_manager.env_origin)
         root_pos_w = self.robot.data.root_pos_w
-        deviation = (root_pos_w - ref_root_translation).norm(dim=1, keepdim=True)
+        deviation = (root_pos_w[:, 2] - ref_root_translation[:, 2]).abs().unsqueeze(1)
         return deviation > self.max_distance
     
 class root_rot_deviation(Termination[MotionLibG1]):
@@ -49,7 +49,7 @@ class root_rot_deviation(Termination[MotionLibG1]):
         diff = (projected_gravity_b[:, 2] - ref_projected_gravity_b[:, 2]).abs().unsqueeze(-1)
         return diff > self.threshold
     
-class track_kp_error(Termination[MotionLibG1]):
+class track_kp_z_error(Termination[MotionLibG1]):
     def __init__(self, env, threshold: float = 0.4, body_names: str = ".*") -> None:
         super().__init__(env)
         self.threshold = threshold

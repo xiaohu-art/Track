@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Union, Optional, Dict, Tuple
 
 from active_adaptation.envs.mdp.base import Command
+import active_adaptation as aa
 from isaaclab.utils.math import (
     quat_from_euler_xyz,
     quat_mul,
@@ -73,24 +74,105 @@ class MotionLib(Command):
 
         self.episode_start_frames = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self.episode_end_frames = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
+        self.episode_motion_ids = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
+        self._init_adaptive()
 
-    def _choose_start_frames(self, motion_ids: torch.Tensor) -> torch.Tensor:
-        start_frames = self.start_frames[motion_ids]
+    def _init_adaptive(self):
+        self.bin_size = 50
+        self.adaptive_kernel_size = 3
+        self.adaptive_lambda = 0.8
+        self.adaptive_uniform_ratio = 0.3
 
-        motion_length = self.motion_length[motion_ids]
-        bin_size = 50
-        max_bins = ((motion_length - 1) // bin_size).clamp_min(0)
-        r = torch.rand_like(max_bins, dtype=torch.float32)
-        bin_ids = torch.floor(r * (max_bins.to(torch.float32) + 1.0)).to(torch.long)
-        start_frames += bin_ids * bin_size
-        return start_frames
+        self.bin_count_per_motion = ((self.motion_length - 1) // self.bin_size).clamp_min(0) + 1
+        self.max_bin_count = int(self.bin_count_per_motion.max().item())
+        self.bin_failed_count = torch.zeros(
+            (self.num_motions, self.max_bin_count),
+            dtype=torch.long,
+            device=self.device
+        )
+        self.kernel = torch.tensor(
+            [self.adaptive_lambda**i for i in range(self.adaptive_kernel_size)],
+            device=self.device
+        )
+        self.kernel = self.kernel / self.kernel.sum()
+    
+    def adaptive_sampling(self, env_ids: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Adaptive sampling based on failure statistics.
+        
+        Args:
+            env_ids: Environment IDs to sample for.
+            
+        Returns:
+            motion_ids: Sampled motion IDs.
+            sampled_bins: Sampled bin IDs.
+        """
+        # Record failures from terminated environments
+        episode_lengths = self.env.stats["episode_len"]
+        termination = self.env._compute_termination()
+
+        mask = termination[env_ids]
+        if mask.any():
+            terminated_envs = env_ids[mask.nonzero(as_tuple=True)[0]]
+            lengths = episode_lengths[terminated_envs].squeeze(-1)
+            
+            current_frames = self.episode_start_frames[terminated_envs] + lengths
+            start_frames = self.episode_start_frames[terminated_envs]
+            bin_ids = ((current_frames - start_frames) // self.bin_size).long()
+            motion_ids = self.episode_motion_ids[terminated_envs]
+            max_bins = self.bin_count_per_motion[motion_ids] - 1
+            bin_ids = torch.minimum(bin_ids, max_bins)
+            flat_index = motion_ids * self.max_bin_count + bin_ids
+            update_cnt = torch.bincount(
+                flat_index, minlength=self.num_motions * self.max_bin_count
+            ).view(self.num_motions, self.max_bin_count)
+            self.bin_failed_count += update_cnt
+        
+        # Sample motions based on failure statistics
+        motion_scores = self.bin_failed_count.sum(dim=1)
+        total_fail = motion_scores.sum()
+        if total_fail < 1e-6:
+            motion_ids = torch.randint(0, self.num_motions, (env_ids.shape[0],), device=self.device, dtype=torch.long)
+        else:
+            motion_probs = (1 - self.adaptive_uniform_ratio) * (motion_scores / total_fail) + \
+                           (self.adaptive_uniform_ratio / self.num_motions)
+            motion_ids = torch.multinomial(motion_probs, env_ids.shape[0], replacement=True)
+
+        # Sample bins based on failure statistics with smoothing
+        bin_scores = self.bin_failed_count[:, :self.max_bin_count]
+        bin_probs = bin_scores + self.adaptive_uniform_ratio / self.bin_count_per_motion[:, None]
+        bin_probs = torch.nn.functional.pad(
+            bin_probs.unsqueeze(1),
+            (0, self.adaptive_kernel_size - 1),
+            mode="replicate",
+        )
+        bin_probs = torch.nn.functional.conv1d(bin_probs, self.kernel.view(1, 1, -1)).squeeze(1)
+        bin_mask = torch.arange(self.max_bin_count, device=self.device)[None, :] < self.bin_count_per_motion[:, None]
+        bin_probs = torch.where(bin_mask, bin_probs, torch.zeros_like(bin_probs))
+        bin_probs = bin_probs / bin_probs.sum(dim=1, keepdim=True)
+        env_bin_probs = bin_probs[motion_ids]
+        env_bin_cdf = env_bin_probs.cumsum(dim=1)
+        rand = torch.rand(env_bin_cdf.shape[0], device=self.device).unsqueeze(1)
+        sampled_bins = (env_bin_cdf < rand).sum(dim=1)
+        
+        return motion_ids, sampled_bins
     
     def sample_init(self, env_ids: torch.Tensor) -> torch.Tensor:
-        motion_ids = torch.randint(0, self.num_motions, (env_ids.shape[0],), device=self.device, dtype=torch.long)
+        """Sample initial states for given environments.
         
-        start_frames = self._choose_start_frames(motion_ids)
+        Args:
+            env_ids: Environment IDs to initialize.
+            
+        Returns:
+            Dictionary containing initial root states for robots.
+        """
+        # Adaptive sampling
+        motion_ids, sampled_bins = self.adaptive_sampling(env_ids)
+
+        # Compute start and end frames
+        start_frames = self.start_frames[motion_ids] + sampled_bins * self.bin_size
         end_frames = self.end_frames[motion_ids]
 
+        self.episode_motion_ids[env_ids] = motion_ids
         self.episode_start_frames[env_ids] = start_frames
         self.episode_end_frames[env_ids] = end_frames
         
@@ -106,6 +188,10 @@ class MotionLib(Command):
         init_root_state = self.init_root_state[env_ids]     # (num_envs, 3 + 4 + 6) root position, root orientation, root linear velocity and root angular velocity
         init_root_state[:, :3] = init_root_pos_w
         init_root_state[:, 3:7] = init_root_quat_w
+
+        if aa.get_backend() == "isaac":
+            init_root_state[:, 7:10] = self.root_lin_vel_w[start_frames]
+            init_root_state[:, 10:] = self.root_ang_vel_w[start_frames]
 
         random_joint_samples = sample_uniform(self.joint_range[0], self.joint_range[1], (env_ids.shape[0], self.robot.num_joints), device=self.device)
         init_joint_pos = self.joint_pos[start_frames].to(self.device)
