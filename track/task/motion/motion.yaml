@@ -108,18 +108,23 @@ reward:
     action_rate_l2:     {weight: 0.2}
 
 randomization:
-  push:
-    body_names: ["torso_link", "pelvis"]
-    force_range: [0.0, 0.1]
+  # push:
+  #   body_names: ["torso_link", "pelvis"]
+  #   force_range: [0.0, 0.1]
+  perturb_body_com:
+    body_names: ["torso_link"]
+    pos_range: [-0.05, 0.05]
+  push_by_setting_velocity:
+    velocity_range: [-1.0, 1.0]
   perturb_body_mass:
     ".*wrist_yaw_link": [1.0, 2.0]
     "^(?!.*wrist_yaw_link).*": [0.9, 1.1]
     # .*: [0.9, 1.1]
   perturb_body_materials:
     body_names: ".*ankle_roll_link"
-    static_friction_range: [0.2, 4.0]
-    dynamic_friction_range: [0.2, 4.0]
-    restitution_range: [0.0, 0.2]
+    static_friction_range: [0.2, 1.6]
+    dynamic_friction_range: [0.2, 1.2]
+    restitution_range: [0.0, 0.5]
   motor_params:
     stiffness_range:
       .*: [0.8, 1.1]
