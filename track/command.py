@@ -79,7 +79,7 @@ class MotionLib(Command):
 
     def _init_adaptive(self):
         self.bin_size = 50
-        self.adaptive_kernel_size = 3
+        self.adaptive_kernel_size = 1
         self.adaptive_lambda = 0.8
         self.adaptive_uniform_ratio = 0.3
 
@@ -138,21 +138,21 @@ class MotionLib(Command):
             motion_ids = torch.multinomial(motion_probs, env_ids.shape[0], replacement=True)
 
         # Sample bins based on failure statistics with smoothing
-        bin_scores = self.bin_failed_count[:, :self.max_bin_count]
-        bin_probs = bin_scores + self.adaptive_uniform_ratio / self.bin_count_per_motion[:, None]
+        bin_scores = self.bin_failed_count[motion_ids, :self.max_bin_count]
+        bin_probs = bin_scores + self.adaptive_uniform_ratio / self.bin_count_per_motion[motion_ids, None]
         bin_probs = torch.nn.functional.pad(
             bin_probs.unsqueeze(1),
             (0, self.adaptive_kernel_size - 1),
             mode="replicate",
         )
         bin_probs = torch.nn.functional.conv1d(bin_probs, self.kernel.view(1, 1, -1)).squeeze(1)
-        bin_mask = torch.arange(self.max_bin_count, device=self.device)[None, :] < self.bin_count_per_motion[:, None]
+        
+        bin_indices = torch.arange(self.max_bin_count, device=self.device).unsqueeze(0).expand(motion_ids.shape[0], -1)
+        bin_mask = bin_indices < self.bin_count_per_motion[motion_ids, None]
+
         bin_probs = torch.where(bin_mask, bin_probs, torch.zeros_like(bin_probs))
         bin_probs = bin_probs / bin_probs.sum(dim=1, keepdim=True)
-        env_bin_probs = bin_probs[motion_ids]
-        env_bin_cdf = env_bin_probs.cumsum(dim=1)
-        rand = torch.rand(env_bin_cdf.shape[0], device=self.device).unsqueeze(1)
-        sampled_bins = (env_bin_cdf < rand).sum(dim=1)
+        sampled_bins = torch.multinomial(bin_probs, num_samples=1).squeeze(1)
         
         return motion_ids, sampled_bins
     
