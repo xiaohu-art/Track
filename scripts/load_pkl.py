@@ -50,8 +50,7 @@ from isaaclab.utils.math import axis_angle_from_quat, quat_conjugate, quat_mul, 
 import active_adaptation as aa
 aa.set_backend("isaac")
 
-from track.asset import G1_29DOF_NOHAND
-
+from active_adaptation.assets.humanoid import G1_WAIST_UNLOCKED_CFG
 
 @configclass
 class ReplayMotionsSceneCfg(InteractiveSceneCfg):
@@ -70,7 +69,7 @@ class ReplayMotionsSceneCfg(InteractiveSceneCfg):
     )
 
     # articulation
-    robot = G1_29DOF_NOHAND.isaaclab().replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot = G1_WAIST_UNLOCKED_CFG.isaaclab().replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
 class MotionLoader:

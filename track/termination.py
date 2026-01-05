@@ -24,8 +24,11 @@ class root_z_deviation(Termination[MotionLibG1]):
 
     def compute(self, termination: torch.Tensor) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
-        ref_root_translation = self.command_manager.root_pos_w[timestep]
-        ref_root_translation.add_(self.command_manager.env_origin)
+        # ref_root_translation = self.command_manager.root_pos_w[timestep]
+        # ref_root_translation.add_(self.command_manager.env_origin)
+        aligned_body_pos_w, _, _, _ = self.command_manager.get_aligned_body_state(timestep)
+        ref_root_translation = aligned_body_pos_w[:, 0]
+
         root_pos_w = self.robot.data.root_pos_w
         deviation = (root_pos_w[:, 2] - ref_root_translation[:, 2]).abs().unsqueeze(1)
         return deviation > self.max_distance
@@ -38,7 +41,10 @@ class root_rot_deviation(Termination[MotionLibG1]):
 
     def compute(self, termination: torch.Tensor) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
-        ref_quat_w = self.command_manager.root_quat_w[timestep]
+        # ref_quat_w = self.command_manager.root_quat_w[timestep]
+        _, aligned_body_quat_w, _, _ = self.command_manager.get_aligned_body_state(timestep)
+        ref_quat_w = aligned_body_quat_w[:, 0]
+
         root_quat_w = self.robot.data.root_quat_w
 
         gravity_vec_w = torch.tensor([0., 0., -1.], device=self.device).repeat(self.num_envs, 1)
@@ -47,6 +53,47 @@ class root_rot_deviation(Termination[MotionLibG1]):
         projected_gravity_b = quat_apply_inverse(root_quat_w, gravity_vec_w)
 
         diff = (projected_gravity_b[:, 2] - ref_projected_gravity_b[:, 2]).abs().unsqueeze(-1)
+        return diff > self.threshold
+
+class anchor_z_deviation(Termination[MotionLibG1]):
+    def __init__(self, env, max_distance: float = 0.4) -> None:
+        super().__init__(env)
+        self.max_distance = torch.tensor(max_distance, device=self.device)
+        self.robot = self.command_manager.robot
+        self.anchor_body_index = self.command_manager.anchor_body_index
+
+    def compute(self, termination: torch.Tensor) -> torch.Tensor:
+        timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
+        ref_anchor_pos_w = self.command_manager.body_pos_w[timestep][:, self.anchor_body_index]
+        ref_anchor_pos_w.add_(self.command_manager.env_origin[:, None])
+        # aligned_body_pos_w, _, _, _ = self.command_manager.get_aligned_body_state(timestep)
+        # ref_anchor_pos_w = aligned_body_pos_w[:, self.anchor_body_index]
+
+        anchor_pos_w = self.robot.data.body_link_pos_w[:, self.anchor_body_index]
+        deviation = (anchor_pos_w[:, :, 2] - ref_anchor_pos_w[:, :, 2]).abs()
+        return deviation > self.max_distance
+
+class anchor_rot_deviation(Termination[MotionLibG1]):
+    def __init__(self, env, threshold: float = 0.8) -> None:
+        super().__init__(env)
+        self.threshold = threshold
+        self.robot = self.command_manager.robot
+        self.anchor_body_index = self.command_manager.anchor_body_index
+
+    def compute(self, termination: torch.Tensor) -> torch.Tensor:
+        timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
+        ref_anchor_quat_w = self.command_manager.body_quat_w[timestep][:, self.anchor_body_index]
+        # _, aligned_body_quat_w, _, _ = self.command_manager.get_aligned_body_state(timestep)
+        # ref_anchor_quat_w = aligned_body_quat_w[:, self.anchor_body_index]
+
+        anchor_quat_w = self.robot.data.body_link_quat_w[:, self.anchor_body_index]
+
+        gravity_vec_w = torch.tensor([0., 0., -1.], device=self.device).repeat(self.num_envs, 1, 1)
+
+        ref_projected_gravity_b = quat_apply_inverse(ref_anchor_quat_w, gravity_vec_w)
+        projected_gravity_b = quat_apply_inverse(anchor_quat_w, gravity_vec_w)
+
+        diff = (projected_gravity_b[:, :, 2] - ref_projected_gravity_b[:, :, 2]).abs()
         return diff > self.threshold
     
 class track_kp_z_error(Termination[MotionLibG1]):
@@ -58,8 +105,10 @@ class track_kp_z_error(Termination[MotionLibG1]):
 
     def compute(self, termination: torch.Tensor) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
-        ref_keypoints = self.command_manager.body_pos_w[timestep][:, self.body_indices]
-        ref_keypoints.add_(self.command_manager.env_origin[:, None])
+        # ref_keypoints = self.command_manager.body_pos_w[timestep][:, self.body_indices]
+        # ref_keypoints.add_(self.command_manager.env_origin[:, None])
+        aligned_body_pos_w, _, _, _ = self.command_manager.get_aligned_body_state(timestep)
+        ref_keypoints = aligned_body_pos_w[:, self.body_indices]
 
         body_pos_global = self.robot.data.body_link_pos_w[:, self.body_indices]
 

@@ -40,7 +40,7 @@ input:
 
 command:
   class: MotionLibG1
-  dataset: sfu_29dof
+  dataset: [sfu_29dof, lafan1]
   occlusion: "amass_copycat_occlusion_v3.pkl"
   pose_range:
     x: 
@@ -140,8 +140,10 @@ randomization:
 
 termination:
   success: {}
-  root_z_deviation:     {max_distance: 0.25}
-  root_rot_deviation:   {threshold: 0.8}
+  # root_z_deviation:     {max_distance: 0.25}
+  # root_rot_deviation:   {threshold: 0.8}
+  anchor_z_deviation:   {max_distance: 0.25}
+  anchor_rot_deviation: {threshold: 0.8}
   track_kp_z_error:     {threshold: 0.25, 
                         body_names: [ left_wrist_yaw_link, right_wrist_yaw_link,
                                       left_ankle_roll_link, right_ankle_roll_link]}

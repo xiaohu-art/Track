@@ -36,6 +36,9 @@ class tracking_anchor_pos(Reward[MotionLibG1]):
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
         ref_anchor_pos_w = self.command_manager.body_pos_w[timestep][:, self.anchor_body_index]
         ref_anchor_pos_w.add_(self.command_manager.env_origin[:, None])
+        # aligned_body_pos_w, _, _, _ = self.command_manager.get_aligned_body_state(timestep)
+        # ref_anchor_pos_w = aligned_body_pos_w[:, self.anchor_body_index]
+
         anchor_pos_w = self.robot.data.body_link_pos_w[:, self.anchor_body_index]
         error = (anchor_pos_w - ref_anchor_pos_w).square().sum(-1)
         reward = torch.exp(- error / self.sigma)
@@ -51,6 +54,9 @@ class tracking_anchor_quat(Reward[MotionLibG1]):
     def compute(self) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
         ref_anchor_quat_w = self.command_manager.body_quat_w[timestep][:, self.anchor_body_index]
+        # _, aligned_body_quat_w, _, _ = self.command_manager.get_aligned_body_state(timestep)
+        # ref_anchor_quat_w = aligned_body_quat_w[:, self.anchor_body_index]
+
         anchor_quat_w = self.robot.data.body_link_quat_w[:, self.anchor_body_index]
         error = (quat_error_magnitude(anchor_quat_w, ref_anchor_quat_w) ** 2)
         reward = torch.exp(- error / self.sigma)
@@ -82,8 +88,10 @@ class tracking_kp_pos(Reward[MotionLibG1]):
 
     def compute(self) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
-        ref_keypoints = self.command_manager.body_pos_w[timestep][:, self.keypoint_body_index]
-        ref_keypoints.add_(self.command_manager.env_origin[:, None])
+        # ref_keypoints = self.command_manager.body_pos_w[timestep][:, self.keypoint_body_index]
+        # ref_keypoints.add_(self.command_manager.env_origin[:, None])
+        aligned_body_pos_w, _, _, _ = self.command_manager.get_aligned_body_state(timestep)
+        ref_keypoints = aligned_body_pos_w[:, self.keypoint_body_index]
 
         body_pos_global = self.robot.data.body_link_pos_w[:, self.keypoint_body_index]
 
@@ -100,7 +108,9 @@ class tracking_kp_quat(Reward[MotionLibG1]):
 
     def compute(self) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
-        ref_keypoints = self.command_manager.body_quat_w[timestep][:, self.keypoint_body_index]
+        # ref_keypoints = self.command_manager.body_quat_w[timestep][:, self.keypoint_body_index]
+        _, aligned_body_quat_w, _, _ = self.command_manager.get_aligned_body_state(timestep)
+        ref_keypoints = aligned_body_quat_w[:, self.keypoint_body_index]
 
         body_quat_w = self.robot.data.body_link_quat_w[:, self.keypoint_body_index]
         error = (quat_error_magnitude(body_quat_w, ref_keypoints) ** 2).mean(-1, True)
@@ -117,7 +127,10 @@ class tracking_kp_lin_vel(Reward[MotionLibG1]):
 
     def compute(self) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
-        ref_lin_vel = self.command_manager.body_lin_vel_w[timestep][:, self.keypoint_body_index]
+        # ref_lin_vel = self.command_manager.body_lin_vel_w[timestep][:, self.keypoint_body_index]
+        _, _, aligned_body_lin_vel_w, _ = self.command_manager.get_aligned_body_state(timestep)
+        ref_lin_vel = aligned_body_lin_vel_w[:, self.keypoint_body_index]
+
         body_lin_vel_w = self.robot.data.body_lin_vel_w[:, self.keypoint_body_index]
         error = (body_lin_vel_w - ref_lin_vel).square().sum(-1).mean(-1, True)
         reward = torch.exp(- error / self.sigma)
@@ -132,7 +145,10 @@ class tracking_kp_ang_vel(Reward[MotionLibG1]):
 
     def compute(self) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
-        ref_ang_vel = self.command_manager.body_ang_vel_w[timestep][:, self.keypoint_body_index]
+        # ref_ang_vel = self.command_manager.body_ang_vel_w[timestep][:, self.keypoint_body_index]
+        _, _, _, aligned_body_ang_vel_w = self.command_manager.get_aligned_body_state(timestep)
+        ref_ang_vel = aligned_body_ang_vel_w[:, self.keypoint_body_index]
+
         body_ang_vel_w = self.robot.data.body_ang_vel_w[:, self.keypoint_body_index]
         error = (body_ang_vel_w - ref_ang_vel).square().sum(-1).mean(-1, True)
         reward = torch.exp(- error / self.sigma)
