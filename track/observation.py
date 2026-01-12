@@ -24,7 +24,8 @@ class root_quat_w(Observation[MotionLibG1]):
     def compute(self) -> torch.Tensor:
         self.root_quat_w = self.command_manager.robot.data.root_quat_w
         root_quat_w = random_noise(self.root_quat_w, self.noise_std)
-        return root_quat_w.reshape(self.num_envs, -1)
+        mat = matrix_from_quat(root_quat_w)
+        return mat[..., :2].reshape(self.num_envs, -1)
 
 class ref_root_quat(Observation[MotionLibG1]):
     def __init__(self, env):
@@ -40,22 +41,8 @@ class ref_root_quat(Observation[MotionLibG1]):
         root_quat_w = self.robot.data.root_quat_w
         
         quat_error = quat_mul(quat_inv(root_quat_w), ref_root_quat_w)
-        return quat_error.reshape(self.num_envs, -1)
-
-class ref_anchor_quat(Observation[MotionLibG1]):
-    def __init__(self, env):
-        super().__init__(env)
-        self.robot = self.command_manager.robot
-        self.anchor_body_index = self.command_manager.anchor_body_index
-
-    def compute(self):
-        current_frames = self.command_manager.episode_start_frames + self.env.episode_length_buf
-        current_frames = torch.min(current_frames, self.command_manager.episode_end_frames - 1)
-        
-        ref_anchor_quat_w = self.command_manager.body_quat_w[current_frames][:, self.anchor_body_index]
-        anchor_quat_w = self.robot.data.body_link_quat_w[:, self.anchor_body_index]
-        quat_error = quat_mul(quat_inv(anchor_quat_w), ref_anchor_quat_w)
-        return quat_error.reshape(self.num_envs, -1)
+        mat = matrix_from_quat(quat_error)
+        return mat[..., :2].reshape(self.num_envs, -1)
 
 class ref_qpos(Observation[MotionLibG1]):
     def __init__(self, env, joint_names=".*"):
@@ -119,4 +106,5 @@ class ref_kp_quat_gap(Observation[MotionLibG1]):
         body_kp_quat = self.robot.data.body_link_quat_w[:, self.keypoint_body_index]
 
         _, quat = subtract_frame_transforms(body_kp_pos, body_kp_quat, ref_kp_pos, ref_kp_quat)
-        return quat.reshape(self.num_envs, -1)
+        mat = matrix_from_quat(quat)
+        return mat[..., :2].reshape(self.num_envs, -1)

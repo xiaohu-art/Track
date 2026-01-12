@@ -20,7 +20,7 @@ SIGMA = {
     "tracking_anchor_pos": 0.3**2,
     "tracking_anchor_quat": 0.4**2,
     "tracking_kp_pos": 0.3**2,
-    "tracking_kp_quat": 0.5**2,
+    "tracking_kp_quat": 0.4**2,
     "tracking_kp_lin_vel": 1.0**2,
     "tracking_kp_ang_vel": 3.14**2,
 }

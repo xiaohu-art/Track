@@ -312,9 +312,8 @@ class MotionLibG1(MotionLib):
             occlusion: str,
             pose_range: Dict[str, Tuple[float, float]],
             joint_range: Tuple[float, float],
-            anchor_body: str = "torso_link",
+            anchor_body: str = "pelvis",
             keypoint_body: List[str] = [
-                                        "pelvis",
                                         "left_hip_pitch_link", "right_hip_pitch_link", 
                                         "left_knee_link", "right_knee_link", 
                                         "left_ankle_roll_link", "right_ankle_roll_link", 
