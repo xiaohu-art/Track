@@ -26,7 +26,7 @@ class root_z_deviation(Termination[MotionLibG1]):
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
         # ref_root_translation = self.command_manager.root_pos_w[timestep]
         # ref_root_translation.add_(self.command_manager.env_origin)
-        aligned_body_pos_w, _, _, _ = self.command_manager.get_aligned_body_state(timestep)
+        aligned_body_pos_w, _ = self.command_manager.get_aligned_body_state(timestep)
         ref_root_translation = aligned_body_pos_w[:, 0]
 
         root_pos_w = self.robot.data.root_pos_w
@@ -42,7 +42,7 @@ class root_rot_deviation(Termination[MotionLibG1]):
     def compute(self, termination: torch.Tensor) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
         # ref_quat_w = self.command_manager.root_quat_w[timestep]
-        _, aligned_body_quat_w, _, _ = self.command_manager.get_aligned_body_state(timestep)
+        _, aligned_body_quat_w = self.command_manager.get_aligned_body_state(timestep)
         ref_quat_w = aligned_body_quat_w[:, 0]
 
         root_quat_w = self.robot.data.root_quat_w
@@ -107,7 +107,7 @@ class track_kp_z_error(Termination[MotionLibG1]):
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
         # ref_keypoints = self.command_manager.body_pos_w[timestep][:, self.body_indices]
         # ref_keypoints.add_(self.command_manager.env_origin[:, None])
-        aligned_body_pos_w, _, _, _ = self.command_manager.get_aligned_body_state(timestep)
+        aligned_body_pos_w, _ = self.command_manager.get_aligned_body_state(timestep)
         ref_keypoints = aligned_body_pos_w[:, self.body_indices]
 
         body_pos_global = self.robot.data.body_link_pos_w[:, self.body_indices]

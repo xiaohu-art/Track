@@ -40,7 +40,7 @@ input:
 
 command:
   class: MotionLibG1
-  dataset: [sfu_29dof, lafan1]
+  dataset: [cmu_29dof, kit_29dof, sfu_29dof]
   occlusion: "amass_copycat_occlusion_v3.pkl"
   pose_range:
     x: 
@@ -59,8 +59,8 @@ command:
       - -0.1
       - 0.1
     yaw: 
-      - -0.2
-      - 0.2
+      - -1.5
+      - 1.5
   joint_range: 
     - -0.05
     - 0.05
@@ -71,7 +71,6 @@ observation:
     root_angvel_b:        {noise_std: 0.1}
     gravity_multistep:    {steps: 4, noise_std: 0.05}
     joint_pos_multistep:  {joint_names: "(?!(waist_roll_joint|waist_pitch_joint)).*", steps: 4, noise_std: 0.05}
-    joint_vel_multistep:  {joint_names: "(?!(waist_roll_joint|waist_pitch_joint)).*", steps: 4, noise_std: 0.2}
     prev_actions:         {steps: 2}
     body_pos_b:           {body_names: [left_hip_pitch_link, right_hip_pitch_link, 
                                         left_knee_link, right_knee_link, 
@@ -89,19 +88,11 @@ observation:
                                         yaw_only: false}
     ref_root_quat:        {}
     ref_kp_pos_gap:       {}
-  # priv:
-  #   ref_qpos:             {}
-  #   ref_kp_pos_gap:       {}
-  #   ref_kp_quat:          {}
-  #   root_height:      {}
-  #   root_linvel_b:    {}
-  #   body_vel:         {body_names: [left_hip_pitch_link, right_hip_pitch_link, 
-  #                                   left_knee_link, right_knee_link, 
-  #                                   left_ankle_roll_link, right_ankle_roll_link, 
-  #                                   left_shoulder_roll_link, right_shoulder_roll_link, 
-  #                                   left_elbow_link, right_elbow_link, 
-  #                                   left_wrist_yaw_link, right_wrist_yaw_link], 
-  #                                   yaw_only: false}
+  priv:
+    ref_qpos:             {}
+    ref_kp_pos_gap:       {}
+    ref_kp_quat_gap:      {}
+    root_linvel_b:        {}
 
 reward:
   loco:
@@ -112,7 +103,7 @@ reward:
     tracking_kp_lin_vel:    {weight: 2.0}
     tracking_kp_ang_vel:    {weight: 2.0}
 
-    action_rate_l2:     {weight: 0.2}
+    action_rate_l2:     {weight: 0.15}
 
 randomization:
   # push:

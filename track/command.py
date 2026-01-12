@@ -85,7 +85,7 @@ class MotionLib(Command):
         self.adaptive_lambda = 0.8
         self.adaptive_uniform_ratio = 0.3
 
-        self.bin_count_per_motion = ((self.motion_length - 1) // self.bin_size).clamp_min(0) + 1
+        self.bin_count_per_motion = self.motion_length // self.bin_size + 1
         self.max_bin_count = int(self.bin_count_per_motion.max().item())
         self.bin_failed_count = torch.zeros(
             (self.num_motions, self.max_bin_count),
@@ -178,11 +178,17 @@ class MotionLib(Command):
         self.episode_start_frames[env_ids] = start_frames
         self.episode_end_frames[env_ids] = end_frames
         
-        rand_pos_samples = sample_uniform(self.pose_range["x"][0], self.pose_range["x"][1], (env_ids.shape[0], 3), device=self.device)
+        rand_pos_samples = torch.zeros((env_ids.shape[0], 3), device=self.device)
+        rand_pos_samples[:, 0].uniform_(self.pose_range["x"][0], self.pose_range["x"][1])
+        rand_pos_samples[:, 1].uniform_(self.pose_range["y"][0], self.pose_range["y"][1])
+        rand_pos_samples[:, 2].uniform_(self.pose_range["z"][0], self.pose_range["z"][1])
         init_root_pos_w = self.root_pos_w[start_frames].to(self.device) + self.env_origin[env_ids]
-        init_root_pos_w += rand_pos_samples
+        init_root_pos_w = init_root_pos_w + rand_pos_samples
 
-        rand_quat_samples = sample_uniform(self.pose_range["roll"][0], self.pose_range["roll"][1], (env_ids.shape[0], 3), device=self.device)
+        rand_quat_samples = torch.zeros((env_ids.shape[0], 3), device=self.device)
+        rand_quat_samples[:, 0].uniform_(self.pose_range["roll"][0], self.pose_range["roll"][1])
+        rand_quat_samples[:, 1].uniform_(self.pose_range["pitch"][0], self.pose_range["pitch"][1])
+        rand_quat_samples[:, 2].uniform_(self.pose_range["yaw"][0], self.pose_range["yaw"][1])
         orientation_delta = quat_from_euler_xyz(rand_quat_samples[:, 0], rand_quat_samples[:, 1], rand_quat_samples[:, 2])
         init_root_quat_w = self.root_quat_w[start_frames].to(self.device)
         init_root_quat_w = quat_mul(orientation_delta, init_root_quat_w)
@@ -260,8 +266,6 @@ class MotionLib(Command):
     def get_aligned_body_state(self, current_frames: torch.Tensor):
         ref_body_pos_w = self.body_pos_w[current_frames] + self.env_origin[:, None]
         ref_body_quat_w = self.body_quat_w[current_frames]
-        ref_body_lin_vel_w = self.body_lin_vel_w[current_frames]
-        ref_body_ang_vel_w = self.body_ang_vel_w[current_frames]
 
         num_bodies = ref_body_pos_w.shape[1]
         ref_anchor_pos_w = ref_body_pos_w[:, self.anchor_body_index]
@@ -281,10 +285,8 @@ class MotionLib(Command):
 
         aligned_body_quat_w = quat_mul(delta_ori_w, ref_body_quat_w)
         aligned_body_pos_w = delta_pos_w + quat_apply(delta_ori_w, ref_body_pos_w - ref_anchor_pos_w_repeat)
-        aligned_body_lin_vel_w = quat_apply(delta_ori_w, ref_body_lin_vel_w)
-        aligned_body_ang_vel_w = quat_apply(delta_ori_w, ref_body_ang_vel_w)
 
-        return aligned_body_pos_w, aligned_body_quat_w, aligned_body_lin_vel_w, aligned_body_ang_vel_w
+        return aligned_body_pos_w, aligned_body_quat_w
 
     # def update(self):
     #     current_frames = self.episode_start_frames + self.env.episode_length_buf
