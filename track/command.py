@@ -263,31 +263,6 @@ class MotionLib(Command):
         self.end_frames = self.motion_length.cumsum(dim=0).long().to(self.device)
         self.motion_length = self.motion_length.to(self.device)
 
-    def get_aligned_body_state(self, current_frames: torch.Tensor):
-        ref_body_pos_w = self.body_pos_w[current_frames] + self.env_origin[:, None]
-        ref_body_quat_w = self.body_quat_w[current_frames]
-
-        num_bodies = ref_body_pos_w.shape[1]
-        ref_anchor_pos_w = ref_body_pos_w[:, self.anchor_body_index]
-        ref_anchor_quat_w = ref_body_quat_w[:, self.anchor_body_index]
-
-        robot_anchor_pos_w = self.robot.data.body_link_pos_w[:, self.anchor_body_index]
-        robot_anchor_quat_w = self.robot.data.body_link_quat_w[:, self.anchor_body_index]
-
-        ref_anchor_pos_w_repeat = ref_anchor_pos_w.expand(-1, num_bodies, -1)
-        ref_anchor_quat_w_repeat = ref_anchor_quat_w.expand(-1, num_bodies, -1)
-        robot_anchor_pos_w_repeat = robot_anchor_pos_w.expand(-1, num_bodies, -1)
-        robot_anchor_quat_w_repeat = robot_anchor_quat_w.expand(-1, num_bodies, -1)
-
-        delta_pos_w = robot_anchor_pos_w_repeat.clone()
-        delta_pos_w[..., 2] = ref_anchor_pos_w_repeat[..., 2]
-        delta_ori_w = yaw_quat(quat_mul(robot_anchor_quat_w_repeat, quat_inv(ref_anchor_quat_w_repeat)))
-
-        aligned_body_quat_w = quat_mul(delta_ori_w, ref_body_quat_w)
-        aligned_body_pos_w = delta_pos_w + quat_apply(delta_ori_w, ref_body_pos_w - ref_anchor_pos_w_repeat)
-
-        return aligned_body_pos_w, aligned_body_quat_w
-
     # def update(self):
     #     current_frames = self.episode_start_frames + self.env.episode_length_buf
     #     current_frames = torch.min(current_frames, self.episode_end_frames - 1)
@@ -312,8 +287,9 @@ class MotionLibG1(MotionLib):
             occlusion: str,
             pose_range: Dict[str, Tuple[float, float]],
             joint_range: Tuple[float, float],
-            anchor_body: str = "pelvis",
+            anchor_body: str = "torso_link",
             keypoint_body: List[str] = [
+                                        "pelvis",
                                         "left_hip_pitch_link", "right_hip_pitch_link", 
                                         "left_knee_link", "right_knee_link", 
                                         "left_ankle_roll_link", "right_ankle_roll_link", 

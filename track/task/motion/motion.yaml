@@ -92,18 +92,28 @@ observation:
     ref_qpos:             {}
     ref_kp_pos_gap:       {}
     ref_kp_quat_gap:      {}
+    root_height:          {}
     root_linvel_b:        {}
+    body_vel_b:           {body_names: [left_hip_pitch_link, right_hip_pitch_link, 
+                                        left_knee_link, right_knee_link, 
+                                        left_ankle_roll_link, right_ankle_roll_link, 
+                                        left_shoulder_roll_link, right_shoulder_roll_link, 
+                                        left_elbow_link, right_elbow_link, 
+                                        left_wrist_yaw_link, right_wrist_yaw_link]}
 
 reward:
   loco:
     tracking_anchor_pos:    {weight: 1.0}
     tracking_anchor_quat:   {weight: 1.0}
+    tracking_qpos:          {weight: 1.0, 
+                             joint_names: "(?!.*(waist_roll|waist_pitch|wrist)).*"}
     tracking_kp_pos:        {weight: 2.0}
     tracking_kp_quat:       {weight: 2.0}
     tracking_kp_lin_vel:    {weight: 2.0}
     tracking_kp_ang_vel:    {weight: 2.0}
 
-    action_rate_l2:     {weight: 0.15}
+    feet_slip:              {weight: 1.0, body_names: .*ankle_roll_link}
+    action_rate_l2:         {weight: 0.15}
 
 randomization:
   # push:
@@ -131,9 +141,8 @@ randomization:
 
 termination:
   success: {}
-  # anchor_xy_deviation:  {max_distance: 1.0}
-  anchor_z_deviation:   {max_distance: 0.25}
-  anchor_rot_deviation: {threshold: 0.8}
+  root_deviation:       {max_distance: 0.4}
+  root_rot_deviation:   {threshold: 0.8}
   track_kp_z_error:     {threshold: 0.25, 
                         body_names: [ left_wrist_yaw_link, right_wrist_yaw_link,
                                       left_ankle_roll_link, right_ankle_roll_link]}

@@ -19,6 +19,7 @@ from track.command import MotionLibG1
 SIGMA = {
     "tracking_anchor_pos": 0.3**2,
     "tracking_anchor_quat": 0.4**2,
+    "tracking_qpos": 0.4**2,
     "tracking_kp_pos": 0.3**2,
     "tracking_kp_quat": 0.4**2,
     "tracking_kp_lin_vel": 1.0**2,
@@ -36,8 +37,6 @@ class tracking_anchor_pos(Reward[MotionLibG1]):
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
         ref_anchor_pos_w = self.command_manager.body_pos_w[timestep][:, self.anchor_body_index]
         ref_anchor_pos_w.add_(self.command_manager.env_origin[:, None])
-        # aligned_body_pos_w, _, _, _ = self.command_manager.get_aligned_body_state(timestep)
-        # ref_anchor_pos_w = aligned_body_pos_w[:, self.anchor_body_index]
 
         anchor_pos_w = self.robot.data.body_link_pos_w[:, self.anchor_body_index]
         error = (anchor_pos_w - ref_anchor_pos_w).square().sum(-1)
@@ -54,30 +53,26 @@ class tracking_anchor_quat(Reward[MotionLibG1]):
     def compute(self) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
         ref_anchor_quat_w = self.command_manager.body_quat_w[timestep][:, self.anchor_body_index]
-        # _, aligned_body_quat_w, _, _ = self.command_manager.get_aligned_body_state(timestep)
-        # ref_anchor_quat_w = aligned_body_quat_w[:, self.anchor_body_index]
 
         anchor_quat_w = self.robot.data.body_link_quat_w[:, self.anchor_body_index]
         error = (quat_error_magnitude(anchor_quat_w, ref_anchor_quat_w) ** 2)
         reward = torch.exp(- error / self.sigma)
         return reward
     
-# class tracking_qpos(Reward[MotionLibG1]):
-#     def __init__(self, env, weight: float = 1.0, joint_names: str = ".*") -> None:
-#         super().__init__(env, weight)
-#         _bind_adaptive_sigma(env)
-#         self.robot = self.command_manager.robot
-#         self.joint_indices, self.joint_names = self.robot.find_joints(joint_names, preserve_order=True)
+class tracking_qpos(Reward[MotionLibG1]):
+    def __init__(self, env, weight: float = 1.0, joint_names: str = ".*") -> None:
+        super().__init__(env, weight)
+        self.robot = self.command_manager.robot
+        self.joint_indices, self.joint_names = self.robot.find_joints(joint_names, preserve_order=True)
+        self.sigma = torch.tensor(SIGMA["tracking_qpos"], device=self.device)
 
-#     def compute(self) -> torch.Tensor:
-#         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
-#         ref_qpos = self.command_manager.joint_pos[timestep][:, self.joint_indices]
-#         qpos = self.robot.data.joint_pos[:, self.joint_indices]
-#         error = (qpos - ref_qpos).square().mean(-1, True)
-#         # reward = torch.exp(- error / self.sigma)
-#         reward = torch.exp(- error / self.env._adaptive_sigma["tracking_qpos"])
-#         self.env._update_adaptive_sigma(error.mean(), "tracking_qpos")
-#         return reward
+    def compute(self) -> torch.Tensor:
+        timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
+        ref_qpos = self.command_manager.joint_pos[timestep][:, self.joint_indices]
+        qpos = self.robot.data.joint_pos[:, self.joint_indices]
+        error = (qpos - ref_qpos).square().mean(-1, True)
+        reward = torch.exp(- error / self.sigma)
+        return reward
     
 class tracking_kp_pos(Reward[MotionLibG1]):
     def __init__(self, env, weight: float = 1.0) -> None:
@@ -88,10 +83,9 @@ class tracking_kp_pos(Reward[MotionLibG1]):
 
     def compute(self) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
-        # ref_keypoints = self.command_manager.body_pos_w[timestep][:, self.keypoint_body_index]
-        # ref_keypoints.add_(self.command_manager.env_origin[:, None])
-        aligned_body_pos_w, _ = self.command_manager.get_aligned_body_state(timestep)
-        ref_keypoints = aligned_body_pos_w[:, self.keypoint_body_index]
+        
+        ref_keypoints = self.command_manager.body_pos_w[timestep][:, self.keypoint_body_index]
+        ref_keypoints.add_(self.command_manager.env_origin[:, None])
 
         body_pos_global = self.robot.data.body_link_pos_w[:, self.keypoint_body_index]
 
@@ -108,9 +102,8 @@ class tracking_kp_quat(Reward[MotionLibG1]):
 
     def compute(self) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
-        # ref_keypoints = self.command_manager.body_quat_w[timestep][:, self.keypoint_body_index]
-        _, aligned_body_quat_w = self.command_manager.get_aligned_body_state(timestep)
-        ref_keypoints = aligned_body_quat_w[:, self.keypoint_body_index]
+        
+        ref_keypoints = self.command_manager.body_quat_w[timestep][:, self.keypoint_body_index]
 
         body_quat_w = self.robot.data.body_link_quat_w[:, self.keypoint_body_index]
         error = (quat_error_magnitude(body_quat_w, ref_keypoints) ** 2).mean(-1, True)
@@ -127,6 +120,7 @@ class tracking_kp_lin_vel(Reward[MotionLibG1]):
 
     def compute(self) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
+
         ref_lin_vel = self.command_manager.body_lin_vel_w[timestep][:, self.keypoint_body_index]
 
         body_lin_vel_w = self.robot.data.body_lin_vel_w[:, self.keypoint_body_index]
@@ -143,6 +137,7 @@ class tracking_kp_ang_vel(Reward[MotionLibG1]):
 
     def compute(self) -> torch.Tensor:
         timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
+        
         ref_ang_vel = self.command_manager.body_ang_vel_w[timestep][:, self.keypoint_body_index]
 
         body_ang_vel_w = self.robot.data.body_ang_vel_w[:, self.keypoint_body_index]

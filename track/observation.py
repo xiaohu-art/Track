@@ -35,13 +35,16 @@ class ref_root_quat(Observation[MotionLibG1]):
     def compute(self):  
         current_frames = self.command_manager.episode_start_frames + self.env.episode_length_buf
         current_frames = torch.min(current_frames, self.command_manager.episode_end_frames - 1)
-        # ref_root_quat_w = self.command_manager.root_quat_w[current_frames]
-        _, aligned_body_quat_w = self.command_manager.get_aligned_body_state(current_frames)
-        ref_root_quat_w = aligned_body_quat_w[:, 0]
-        root_quat_w = self.robot.data.root_quat_w
+
+        ref_root_pos_w = self.command_manager.root_pos_w[current_frames]
+        ref_root_pos_w.add_(self.command_manager.env_origin)
+        ref_root_quat_w = self.command_manager.root_quat_w[current_frames]
         
-        quat_error = quat_mul(quat_inv(root_quat_w), ref_root_quat_w)
-        mat = matrix_from_quat(quat_error)
+        root_pos_w = self.robot.data.root_pos_w
+        root_quat_w = self.robot.data.root_quat_w
+
+        pos, quat = subtract_frame_transforms(root_pos_w, root_quat_w, ref_root_pos_w, ref_root_quat_w)
+        mat = matrix_from_quat(quat)
         return mat[..., :2].reshape(self.num_envs, -1)
 
 class ref_qpos(Observation[MotionLibG1]):
@@ -69,12 +72,10 @@ class ref_kp_pos_gap(Observation[MotionLibG1]):
     def compute(self):
         current_frames = self.command_manager.episode_start_frames + self.env.episode_length_buf
         current_frames = torch.min(current_frames, self.command_manager.episode_end_frames - 1)
-        # ref_kp_pos = self.ref_kp_pos[current_frames]       # (num_envs, num_keypoints, 3)
-        # ref_kp_pos.add_(self.command_manager.env_origin[:, None])
-        # ref_kp_quat = self.ref_kp_quat[current_frames]
-        aligned_body_pos_w, aligned_body_quat_w = self.command_manager.get_aligned_body_state(current_frames)
-        ref_kp_pos = aligned_body_pos_w[:, self.keypoint_body_index]
-        ref_kp_quat = aligned_body_quat_w[:, self.keypoint_body_index]
+        
+        ref_kp_pos = self.ref_kp_pos[current_frames]       # (num_envs, num_keypoints, 3)
+        ref_kp_pos.add_(self.command_manager.env_origin[:, None])
+        ref_kp_quat = self.ref_kp_quat[current_frames]
 
         body_kp_pos = self.robot.data.body_link_pos_w[:, self.keypoint_body_index]
         body_kp_quat = self.robot.data.body_link_quat_w[:, self.keypoint_body_index]
@@ -94,13 +95,10 @@ class ref_kp_quat_gap(Observation[MotionLibG1]):
     def compute(self):
         current_frames = self.command_manager.episode_start_frames + self.env.episode_length_buf
         current_frames = torch.min(current_frames, self.command_manager.episode_end_frames - 1)
-        # ref_kp_pos = self.ref_kp_pos[current_frames]       # (num_envs, num_keypoints, 3)
-        # ref_kp_pos.add_(self.command_manager.env_origin[:, None])
-        # ref_kp_quat = self.ref_kp_quat[current_frames]
-        aligned_body_pos_w, aligned_body_quat_w = self.command_manager.get_aligned_body_state(current_frames)
-        ref_kp_pos = aligned_body_pos_w[:, self.keypoint_body_index]
-        ref_kp_quat = aligned_body_quat_w[:, self.keypoint_body_index]
 
+        ref_kp_pos = self.ref_kp_pos[current_frames]       # (num_envs, num_keypoints, 3)
+        ref_kp_pos.add_(self.command_manager.env_origin[:, None])
+        ref_kp_quat = self.ref_kp_quat[current_frames]
 
         body_kp_pos = self.robot.data.body_link_pos_w[:, self.keypoint_body_index]
         body_kp_quat = self.robot.data.body_link_quat_w[:, self.keypoint_body_index]
