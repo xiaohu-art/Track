@@ -171,27 +171,31 @@ class MotionLib(Command):
         motion_ids, sampled_bins = self.adaptive_sampling(env_ids)
 
         # Compute start and end frames
-        start_frames = self.start_frames[motion_ids] + sampled_bins * self.bin_size
+        start_frames = self.start_frames[motion_ids]
         end_frames = self.end_frames[motion_ids]
+        if self.env.training:
+            start_frames += sampled_bins * self.bin_size
 
         self.episode_motion_ids[env_ids] = motion_ids
         self.episode_start_frames[env_ids] = start_frames
         self.episode_end_frames[env_ids] = end_frames
         
-        rand_pos_samples = torch.zeros((env_ids.shape[0], 3), device=self.device)
-        rand_pos_samples[:, 0].uniform_(self.pose_range["x"][0], self.pose_range["x"][1])
-        rand_pos_samples[:, 1].uniform_(self.pose_range["y"][0], self.pose_range["y"][1])
-        rand_pos_samples[:, 2].uniform_(self.pose_range["z"][0], self.pose_range["z"][1])
         init_root_pos_w = self.root_pos_w[start_frames].to(self.device) + self.env_origin[env_ids]
-        init_root_pos_w = init_root_pos_w + rand_pos_samples
+        if self.env.training:
+            rand_pos_samples = torch.zeros((env_ids.shape[0], 3), device=self.device)
+            rand_pos_samples[:, 0].uniform_(self.pose_range["x"][0], self.pose_range["x"][1])
+            rand_pos_samples[:, 1].uniform_(self.pose_range["y"][0], self.pose_range["y"][1])
+            rand_pos_samples[:, 2].uniform_(self.pose_range["z"][0], self.pose_range["z"][1])
+            init_root_pos_w = init_root_pos_w + rand_pos_samples
 
-        rand_quat_samples = torch.zeros((env_ids.shape[0], 3), device=self.device)
-        rand_quat_samples[:, 0].uniform_(self.pose_range["roll"][0], self.pose_range["roll"][1])
-        rand_quat_samples[:, 1].uniform_(self.pose_range["pitch"][0], self.pose_range["pitch"][1])
-        rand_quat_samples[:, 2].uniform_(self.pose_range["yaw"][0], self.pose_range["yaw"][1])
-        orientation_delta = quat_from_euler_xyz(rand_quat_samples[:, 0], rand_quat_samples[:, 1], rand_quat_samples[:, 2])
         init_root_quat_w = self.root_quat_w[start_frames].to(self.device)
-        init_root_quat_w = quat_mul(orientation_delta, init_root_quat_w)
+        if self.env.training:
+            rand_quat_samples = torch.zeros((env_ids.shape[0], 3), device=self.device)
+            rand_quat_samples[:, 0].uniform_(self.pose_range["roll"][0], self.pose_range["roll"][1])
+            rand_quat_samples[:, 1].uniform_(self.pose_range["pitch"][0], self.pose_range["pitch"][1])
+            rand_quat_samples[:, 2].uniform_(self.pose_range["yaw"][0], self.pose_range["yaw"][1])
+            orientation_delta = quat_from_euler_xyz(rand_quat_samples[:, 0], rand_quat_samples[:, 1], rand_quat_samples[:, 2])
+            init_root_quat_w = quat_mul(orientation_delta, init_root_quat_w)
 
         init_root_state = self.init_root_state[env_ids]     # (num_envs, 3 + 4 + 6) root position, root orientation, root linear velocity and root angular velocity
         init_root_state[:, :3] = init_root_pos_w

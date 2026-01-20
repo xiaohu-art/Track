@@ -89,10 +89,8 @@ observation:
     ref_root_quat:        {}
     ref_kp_pos_gap:       {}
   priv:
-    ref_qpos:             {}
-    ref_kp_pos_gap:       {}
     ref_kp_quat_gap:      {}
-    root_height:          {}
+    ref_qpos:             {}
     root_linvel_b:        {}
     body_vel_b:           {body_names: [left_hip_pitch_link, right_hip_pitch_link, 
                                         left_knee_link, right_knee_link, 
