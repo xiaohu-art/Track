@@ -36,7 +36,8 @@ input:
       # .*wrist_roll.*: 0.173
       # .*wrist_pitch.*: 0.293
       # .*wrist_yaw.*: 0.293
-    max_delay: 2
+    max_delay: 1
+    alpha_range: [0.8, 1.0]
 
 command:
   class: MotionLibG1
@@ -67,11 +68,17 @@ command:
 
 observation:
   policy:
-    root_quat_w:          {noise_std: 0.05}
     root_angvel_b:        {noise_std: 0.1}
     gravity_multistep:    {steps: 4, noise_std: 0.05}
-    joint_pos_multistep:  {joint_names: "(?!(waist_roll_joint|waist_pitch_joint)).*", steps: 4, noise_std: 0.05}
+    joint_pos_multistep:  {joint_names: "(?!.*(waist_roll_joint|waist_pitch_joint|wrist)).*", steps: 4, noise_std: 0.05}
     prev_actions:         {steps: 2}
+    ref_qpos:             {}
+    ref_root_pos:         {}
+    ref_root_quat:        {}
+  priv:
+    root_linvel_b:        {}
+    ref_kp_pos_gap:       {}
+    ref_kp_quat_gap:      {}
     body_pos_b:           {body_names: [left_hip_pitch_link, right_hip_pitch_link, 
                                         left_knee_link, right_knee_link, 
                                         left_ankle_roll_link, right_ankle_roll_link, 
@@ -86,32 +93,20 @@ observation:
                                         left_elbow_link, right_elbow_link, 
                                         left_wrist_yaw_link, right_wrist_yaw_link],
                                         yaw_only: false}
-    ref_root_quat:        {}
-    ref_kp_pos_gap:       {}
-  priv:
-    ref_kp_quat_gap:      {}
-    ref_qpos:             {}
-    root_linvel_b:        {}
-    body_vel_b:           {body_names: [left_hip_pitch_link, right_hip_pitch_link, 
-                                        left_knee_link, right_knee_link, 
-                                        left_ankle_roll_link, right_ankle_roll_link, 
-                                        left_shoulder_roll_link, right_shoulder_roll_link, 
-                                        left_elbow_link, right_elbow_link, 
-                                        left_wrist_yaw_link, right_wrist_yaw_link]}
 
 reward:
   loco:
     tracking_anchor_pos:    {weight: 1.0}
     tracking_anchor_quat:   {weight: 1.0}
     tracking_qpos:          {weight: 1.0, 
-                             joint_names: "(?!.*(waist_roll|waist_pitch|wrist)).*"}
+                             joint_names: "(?!.*(wrist)).*"}
     tracking_kp_pos:        {weight: 2.0}
     tracking_kp_quat:       {weight: 2.0}
     tracking_kp_lin_vel:    {weight: 2.0}
     tracking_kp_ang_vel:    {weight: 2.0}
 
     feet_slip:              {weight: 1.0, body_names: .*ankle_roll_link}
-    action_rate_l2:         {weight: 0.15}
+    action_rate_l2:         {weight: 0.2}
 
 randomization:
   # push:

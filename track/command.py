@@ -117,10 +117,12 @@ class MotionLib(Command):
             terminated_envs = env_ids[mask.nonzero(as_tuple=True)[0]]
             lengths = episode_lengths[terminated_envs].squeeze(-1)
             
-            current_frames = self.episode_start_frames[terminated_envs] + lengths
-            start_frames = self.episode_start_frames[terminated_envs]
-            bin_ids = ((current_frames - start_frames) // self.bin_size).long()
             motion_ids = self.episode_motion_ids[terminated_envs]
+
+            start_frames = self.start_frames[motion_ids]
+            current_frames = self.episode_start_frames[terminated_envs] + lengths
+
+            bin_ids = ((current_frames - start_frames) // self.bin_size).long()
             max_bins = self.bin_count_per_motion[motion_ids] - 1
             bin_ids = torch.minimum(bin_ids, max_bins)
             flat_index = motion_ids * self.max_bin_count + bin_ids
@@ -131,6 +133,8 @@ class MotionLib(Command):
         
         # Sample motions based on failure statistics
         motion_scores = self.bin_failed_count.sum(dim=1)
+        motion_scores = motion_scores / (self.bin_count_per_motion.float() + 1e-6)
+
         total_fail = motion_scores.sum()
         if total_fail < 1e-6:
             motion_ids = torch.randint(0, self.num_motions, (env_ids.shape[0],), device=self.device, dtype=torch.long)
@@ -140,7 +144,7 @@ class MotionLib(Command):
             motion_ids = torch.multinomial(motion_probs, env_ids.shape[0], replacement=True)
 
         # Sample bins based on failure statistics with smoothing
-        bin_scores = self.bin_failed_count[motion_ids, :self.max_bin_count]
+        bin_scores = self.bin_failed_count[motion_ids, :self.max_bin_count].float()
         bin_probs = bin_scores + self.adaptive_uniform_ratio / self.bin_count_per_motion[motion_ids, None]
         bin_probs = torch.nn.functional.pad(
             bin_probs.unsqueeze(1),

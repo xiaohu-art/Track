@@ -15,17 +15,25 @@ from track.command import MotionLibG1
 
 def random_noise(x: torch.Tensor, std: float):
     return x + torch.randn_like(x).clamp(-3., 3.) * std
-    
-class root_quat_w(Observation[MotionLibG1]):
-    def __init__(self, env, noise_std):
-        super().__init__(env)
-        self.noise_std = noise_std
 
-    def compute(self) -> torch.Tensor:
-        self.root_quat_w = self.command_manager.robot.data.root_quat_w
-        root_quat_w = random_noise(self.root_quat_w, self.noise_std)
-        mat = matrix_from_quat(root_quat_w)
-        return mat[..., :2].reshape(self.num_envs, -1)
+class ref_root_pos(Observation[MotionLibG1]):
+    def __init__(self, env):
+        super().__init__(env)
+        self.robot = self.command_manager.robot
+
+    def compute(self):  
+        current_frames = self.command_manager.episode_start_frames + self.env.episode_length_buf
+        current_frames = torch.min(current_frames, self.command_manager.episode_end_frames - 1)
+
+        ref_root_pos_w = self.command_manager.root_pos_w[current_frames]
+        ref_root_pos_w.add_(self.command_manager.env_origin)
+        ref_root_quat_w = self.command_manager.root_quat_w[current_frames]
+        
+        root_pos_w = self.robot.data.root_pos_w
+        root_quat_w = self.robot.data.root_quat_w
+
+        pos, quat = subtract_frame_transforms(root_pos_w, root_quat_w, ref_root_pos_w, ref_root_quat_w)
+        return pos.reshape(self.num_envs, -1)
 
 class ref_root_quat(Observation[MotionLibG1]):
     def __init__(self, env):
