@@ -30,6 +30,7 @@ class MotionLib(Command):
             dataset: Union[List[str], str],
             occlusion: str,
             pose_range: Dict[str, Tuple[float, float]],
+            velocity_range: Dict[str, Tuple[float, float]],
             joint_range: Tuple[float, float],
             anchor_body: Optional[str] = None,
             keypoint_body: Optional[List[str]] = None,
@@ -39,6 +40,7 @@ class MotionLib(Command):
         self.env_origin = self.env.scene.env_origins
 
         self.pose_range = pose_range
+        self.velocity_range = velocity_range
         self.joint_range = joint_range
 
         self.anchor_body_index = self.robot.find_bodies(anchor_body)[0]
@@ -184,7 +186,7 @@ class MotionLib(Command):
         self.episode_start_frames[env_ids] = start_frames
         self.episode_end_frames[env_ids] = end_frames
         
-        init_root_pos_w = self.root_pos_w[start_frames].to(self.device) + self.env_origin[env_ids]
+        init_root_pos_w = self.root_pos_w[start_frames] + self.env_origin[env_ids]
         if self.env.training:
             rand_pos_samples = torch.zeros((env_ids.shape[0], 3), device=self.device)
             rand_pos_samples[:, 0].uniform_(self.pose_range["x"][0], self.pose_range["x"][1])
@@ -192,7 +194,7 @@ class MotionLib(Command):
             rand_pos_samples[:, 2].uniform_(self.pose_range["z"][0], self.pose_range["z"][1])
             init_root_pos_w = init_root_pos_w + rand_pos_samples
 
-        init_root_quat_w = self.root_quat_w[start_frames].to(self.device)
+        init_root_quat_w = self.root_quat_w[start_frames]
         if self.env.training:
             rand_quat_samples = torch.zeros((env_ids.shape[0], 3), device=self.device)
             rand_quat_samples[:, 0].uniform_(self.pose_range["roll"][0], self.pose_range["roll"][1])
@@ -201,13 +203,29 @@ class MotionLib(Command):
             orientation_delta = quat_from_euler_xyz(rand_quat_samples[:, 0], rand_quat_samples[:, 1], rand_quat_samples[:, 2])
             init_root_quat_w = quat_mul(orientation_delta, init_root_quat_w)
 
+        init_root_lin_vel_w = self.root_lin_vel_w[start_frames]
+        if self.env.training:
+            rand_lin_vel_samples = torch.zeros((env_ids.shape[0], 3), device=self.device)
+            rand_lin_vel_samples[:, 0].uniform_(self.velocity_range["x"][0], self.velocity_range["x"][1])
+            rand_lin_vel_samples[:, 1].uniform_(self.velocity_range["y"][0], self.velocity_range["y"][1])
+            rand_lin_vel_samples[:, 2].uniform_(self.velocity_range["z"][0], self.velocity_range["z"][1])
+            init_root_lin_vel_w = init_root_lin_vel_w + rand_lin_vel_samples
+
+        init_root_ang_vel_w = self.root_ang_vel_w[start_frames]
+        if self.env.training:
+            rand_ang_vel_samples = torch.zeros((env_ids.shape[0], 3), device=self.device)
+            rand_ang_vel_samples[:, 0].uniform_(self.velocity_range["roll"][0], self.velocity_range["roll"][1])
+            rand_ang_vel_samples[:, 1].uniform_(self.velocity_range["pitch"][0], self.velocity_range["pitch"][1])
+            rand_ang_vel_samples[:, 2].uniform_(self.velocity_range["yaw"][0], self.velocity_range["yaw"][1])
+            init_root_ang_vel_w = init_root_ang_vel_w + rand_ang_vel_samples
+
         init_root_state = self.init_root_state[env_ids]     # (num_envs, 3 + 4 + 6) root position, root orientation, root linear velocity and root angular velocity
         init_root_state[:, :3] = init_root_pos_w
         init_root_state[:, 3:7] = init_root_quat_w
 
         if aa.get_backend() == "isaac":
-            init_root_state[:, 7:10] = self.root_lin_vel_w[start_frames]
-            init_root_state[:, 10:] = self.root_ang_vel_w[start_frames]
+            init_root_state[:, 7:10] = init_root_lin_vel_w
+            init_root_state[:, 10:] = init_root_ang_vel_w
 
         random_joint_samples = sample_uniform(self.joint_range[0], self.joint_range[1], (env_ids.shape[0], self.robot.num_joints), device=self.device)
         init_joint_pos = self.joint_pos[start_frames].to(self.device)
@@ -293,8 +311,23 @@ class MotionLibG1(MotionLib):
             env,
             dataset: List[str],
             occlusion: str,
-            pose_range: Dict[str, Tuple[float, float]],
-            joint_range: Tuple[float, float],
+            pose_range: Dict[str, Tuple[float, float]] = {
+                "x": (-0.05, 0.05),
+                "y": (-0.05, 0.05),
+                "z": (-0.01, 0.01),
+                "roll": (-0.1, 0.1),
+                "pitch": (-0.1, 0.1),
+                "yaw": (-1.5, 1.5),
+            },
+            velocity_range: Dict[str, Tuple[float, float]] = {
+                "x": (-0.3, 0.3),
+                "y": (-0.3, 0.3),
+                "z": (-0.2, 0.2),
+                "roll": (-0.52, 0.52),
+                "pitch": (-0.52, 0.52),
+                "yaw": (-0.78, 0.78),
+            },
+            joint_range: Tuple[float, float] = (-0.1, 0.1),
             anchor_body: str = "torso_link",
             keypoint_body: List[str] = [
                                         "pelvis",
@@ -311,6 +344,7 @@ class MotionLibG1(MotionLib):
             dataset,
             occlusion,
             pose_range,
+            velocity_range,
             joint_range,
             anchor_body,
             keypoint_body,
