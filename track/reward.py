@@ -164,3 +164,22 @@ class feet_slip(Reward[MotionLibG1]):
         feet_vel = self.robot.data.body_lin_vel_w[:, self.articulation_body_ids, :2]
         slip = (in_contact * feet_vel.norm(dim=-1).square()).sum(dim=1, keepdim=True)
         return -slip
+
+class joint_torque_limits(Reward[MotionLibG1]):
+    def __init__(
+        self, 
+        env,
+        joint_names: str = ".*",
+        soft_factor: float = 0.9,
+        weight: float = 1.0
+    ):
+        super().__init__(env, weight)
+        self.robot = self.command_manager.robot
+        self.joint_indices, self.joint_names = self.robot.find_joints(joint_names, preserve_order=True)
+        self.soft_limits = self.robot.data.joint_effort_limits[:, self.joint_indices] * soft_factor
+
+    def compute(self) -> torch.Tensor:
+        applied_torque = self.robot.data.applied_torque[:, self.joint_indices]
+        violation_high = (applied_torque / self.soft_limits - 1.0).clamp_min(0.0)
+        violation_low = (-applied_torque / self.soft_limits - 1.0).clamp_min(0.0)
+        return - (violation_high + violation_low).sum(1, True)

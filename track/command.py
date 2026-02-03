@@ -320,8 +320,8 @@ class MotionLibG1(MotionLib):
                 "yaw": (-1.5, 1.5),
             },
             velocity_range: Dict[str, Tuple[float, float]] = {
-                "x": (-0.3, 0.3),
-                "y": (-0.3, 0.3),
+                "x": (-0.2, 0.2),
+                "y": (-0.2, 0.2),
                 "z": (-0.2, 0.2),
                 "roll": (-0.52, 0.52),
                 "pitch": (-0.52, 0.52),

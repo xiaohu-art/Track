@@ -55,6 +55,14 @@ observation:
     ref_root_pos:         {}
     ref_root_quat:        {}
   priv:
+    root_linvel_b:        {noise_std: 0.0}
+    root_angvel_b:        {noise_std: 0.0}
+    gravity_multistep:    {steps: 4, noise_std: 0.0}
+    joint_pos_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 4, noise_std: 0.0}
+    prev_actions:         {steps: 2}
+    ref_qpos:             {}
+    ref_root_pos:         {}
+    ref_root_quat:        {}
     ref_kp_pos_gap:       {}
     ref_kp_quat_gap:      {}
     body_pos_b:           {body_names: [left_hip_pitch_link, right_hip_pitch_link, 
