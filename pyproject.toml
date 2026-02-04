@@ -22,7 +22,13 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["track"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [project.entry-points."active_adaptation.projects"]
 track = "track"
+
+[project.entry-points."active_adaptation.learning"]
+track = "track_learning"

@@ -21,7 +21,7 @@ sim:
 
 input:
   action:
-    _target_: active_adaptation.envs.mdp.action.JointPosition
+    class: JointPosition
     action_scaling:
       .*hip_pitch.*: 0.548
       .*hip_roll.*: 0.351

@@ -21,7 +21,7 @@ from typing_extensions import TYPE_CHECKING
 if TYPE_CHECKING:
     from isaaclab.sensors import ContactSensor
 
-DATA_ROOT = Path(__file__).parents[1] / "data"
+DATA_ROOT = Path(__file__).parents[2] / "data"
 
 class MotionLib(Command):
     def __init__(
