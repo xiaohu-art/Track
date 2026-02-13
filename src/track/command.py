@@ -5,6 +5,8 @@ from tqdm import tqdm
 from pathlib import Path
 from typing import List, Union, Optional, Dict, Tuple
 
+from tensordict.tensordict import TensorDict
+
 from active_adaptation.envs.mdp.base import Command
 import active_adaptation as aa
 from isaaclab.utils.math import (
@@ -112,11 +114,13 @@ class MotionLib(Command):
         """
         # Record failures from terminated environments
         episode_lengths = self.env.stats["episode_len"]
-        termination = self.env._compute_termination()
+        termination = self.env.stats["termination"]
 
         mask = termination[env_ids]
+        mask = (mask.cat_from_tensordict(dim=-1) > 0).any(dim=-1)
+
         if mask.any():
-            terminated_envs = env_ids[mask.nonzero(as_tuple=True)[0]]
+            terminated_envs = env_ids[mask]
             lengths = episode_lengths[terminated_envs].squeeze(-1)
             
             motion_ids = self.episode_motion_ids[terminated_envs]
