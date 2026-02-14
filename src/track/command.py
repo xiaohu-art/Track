@@ -4,8 +4,8 @@ import torch
 from tqdm import tqdm
 from pathlib import Path
 from typing import List, Union, Optional, Dict, Tuple
+
 from tensordict.tensordict import TensorDict
-import numpy as np
 
 from active_adaptation.envs.mdp.base import Command
 import active_adaptation as aa
@@ -114,13 +114,13 @@ class MotionLib(Command):
         """
         # Record failures from terminated environments
         episode_lengths = self.env.stats["episode_len"]
-        tensordict = TensorDict({}, self.env.num_envs, device=self.env.device)
-        tensordict = self.env._compute_termination(tensordict)
-        termination = tensordict.get("terminated", torch.zeros((self.env.num_envs, 1), dtype=bool, device=self.env.device))
+        termination = self.env.stats["termination"]
 
         mask = termination[env_ids]
+        mask = (mask.cat_from_tensordict(dim=-1) > 0).any(dim=-1)
+
         if mask.any():
-            terminated_envs = env_ids[mask.nonzero(as_tuple=True)[0]]
+            terminated_envs = env_ids[mask]
             lengths = episode_lengths[terminated_envs].squeeze(-1)
             
             motion_ids = self.episode_motion_ids[terminated_envs]
@@ -353,8 +353,7 @@ class MotionLibG1(MotionLib):
             anchor_body,
             keypoint_body,
         )
-        
-        
+
 class MotionLibGR3(MotionLib):
     
     def __init__(
