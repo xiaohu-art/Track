@@ -31,6 +31,21 @@ class root_deviation(Termination[MotionLibG1]):
         deviation = (root_pos_w - ref_root_pos_w).norm(dim=1, keepdim=True)
         return deviation > self.max_distance
 
+class root_z_deviation(Termination[MotionLibG1]):
+    def __init__(self, env, threshold: float = 0.4) -> None:
+        super().__init__(env)
+        self.threshold = threshold
+        self.robot = self.command_manager.robot
+
+    def compute(self, termination: torch.Tensor) -> torch.Tensor:
+        timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
+        ref_root_pos_w = self.command_manager.body_pos_w[timestep][:, 0]
+        ref_root_pos_w.add_(self.command_manager.env_origin)
+
+        root_pos_w = self.robot.data.root_pos_w
+        deviation = (root_pos_w[:, 2] - ref_root_pos_w[:, 2]).abs()[:, None]
+        return (deviation > self.threshold)
+
 class root_rot_deviation(Termination[MotionLibG1]):
     def __init__(self, env, threshold: float = 0.8) -> None:
         super().__init__(env)

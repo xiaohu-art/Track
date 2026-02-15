@@ -129,26 +129,9 @@ class PPOPolicy(PPOBase):
         )
         
         self.critic = Seq(
-            Mod(make_mlp([512, 256, 128]), ["_priv_normed"], ["_critic_feature"]),
+            Mod(make_mlp([512, 512, 256]), ["_priv_normed"], ["_critic_feature"]),
             Mod(nn.LazyLinear(1), ["_critic_feature"], ["state_value"])
         ).to(self.device)
-
-        if self.cfg.symnet:
-            self.obs_transform = env.observation_funcs[OBS_KEY].symmetry_transform().to(self.device)
-            self.act_transform = env.action_manager.symmetry_transform().to(self.device)
-            actor_module = SymmetryWrapper(
-                actor_module,
-                Mod(self.obs_transform, ["_obs_normed"], ["_obs_normed"]),
-                Seq(
-                    Mod(self.act_transform, ["loc"], ["loc"]),
-                    Mod(self.act_transform.permutation(), ["scale"], ["scale"]),
-                )
-            )
-            self.critic = SymmetryWrapper(
-                self.critic,
-                Mod(self.obs_transform, ["_obs_normed"], ["_obs_normed"]),
-                Mod(nn.Identity(), ["state_value"], ["state_value"])
-            )
 
         self.actor: ProbabilisticActor = ProbabilisticActor(
             module=actor_module,

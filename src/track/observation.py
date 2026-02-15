@@ -55,6 +55,34 @@ class ref_root_quat(Observation[MotionLibG1]):
         mat = matrix_from_quat(quat)
         return mat[..., :2].reshape(self.num_envs, -1)
 
+class ref_linvel_b(Observation[MotionLibG1]):
+    def __init__(self, env):
+        super().__init__(env)
+        self.robot = self.command_manager.robot
+
+    def compute(self):
+        current_frames = self.command_manager.episode_start_frames + self.env.episode_length_buf
+        current_frames = torch.min(current_frames, self.command_manager.episode_end_frames - 1)
+        ref_linvel_w = self.command_manager.root_lin_vel_w[current_frames]
+        
+        root_quat_w = self.robot.data.root_quat_w
+        ref_linvel_b = quat_apply_inverse(root_quat_w, ref_linvel_w)
+        return ref_linvel_b.reshape(self.num_envs, -1)
+
+class ref_angvel_b(Observation[MotionLibG1]):
+    def __init__(self, env):
+        super().__init__(env)
+        self.robot = self.command_manager.robot
+
+    def compute(self):
+        current_frames = self.command_manager.episode_start_frames + self.env.episode_length_buf
+        current_frames = torch.min(current_frames, self.command_manager.episode_end_frames - 1)
+        ref_angvel_w = self.command_manager.root_ang_vel_w[current_frames]
+
+        root_quat_w = self.robot.data.root_quat_w
+        ref_angvel_b = quat_apply_inverse(root_quat_w, ref_angvel_w)
+        return ref_angvel_b.reshape(self.num_envs, -1)
+
 class ref_qpos(Observation[MotionLibG1]):
     def __init__(self, env, joint_names=".*"):
         super().__init__(env)
@@ -67,6 +95,19 @@ class ref_qpos(Observation[MotionLibG1]):
         ref_qpos = self.command_manager.joint_pos[current_frames]
         ref_qpos = ref_qpos[:, self.joint_indices]
         return ref_qpos.reshape(self.num_envs, -1)
+
+class ref_qvel(Observation[MotionLibG1]):
+    def __init__(self, env, joint_names=".*"):
+        super().__init__(env)
+        self.robot = self.command_manager.robot
+        self.joint_indices, self.joint_names = self.robot.find_joints(joint_names, preserve_order=True)
+
+    def compute(self) -> torch.Tensor:
+        current_frames = self.command_manager.episode_start_frames + self.env.episode_length_buf
+        current_frames = torch.min(current_frames, self.command_manager.episode_end_frames - 1)
+        ref_qvel = self.command_manager.joint_vel[current_frames]
+        ref_qvel = ref_qvel[:, self.joint_indices]
+        return ref_qvel.reshape(self.num_envs, -1)
 
 class ref_kp_pos_gap(Observation[MotionLibG1]):
     def __init__(self, env):

@@ -46,23 +46,26 @@ command:
 
 observation:
   policy:
-    root_linvel_b:        {}
     root_angvel_b:        {noise_std: 0.2}
     gravity_multistep:    {steps: 4, noise_std: 0.05}
     joint_pos_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 4, noise_std: 0.05}
+    joint_vel_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 4, noise_std: 0.5}
     prev_actions:         {steps: 2}
     ref_qpos:             {}
-    ref_root_pos:         {}
-    ref_root_quat:        {}
+    ref_qvel:             {}
+    ref_linvel_b:         {}
+    ref_angvel_b:         {}
   priv:
     root_linvel_b:        {}
     root_angvel_b:        {noise_std: 0.0}
     gravity_multistep:    {steps: 4, noise_std: 0.0}
     joint_pos_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 4, noise_std: 0.0}
+    joint_vel_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 4, noise_std: 0.0}
     prev_actions:         {steps: 2}
     ref_qpos:             {}
-    ref_root_pos:         {}
-    ref_root_quat:        {}
+    ref_qvel:             {}
+    ref_linvel_b:         {}
+    ref_angvel_b:         {}
     ref_kp_pos_gap:       {}
     ref_kp_quat_gap:      {}
     body_pos_b:           {body_names: [left_hip_pitch_link, right_hip_pitch_link, 
@@ -92,15 +95,16 @@ reward:
     tracking_kp_ang_vel:    {weight: 2.0}
 
     feet_slip:              {weight: 1.0, body_names: .*ankle_roll_link}
+
     action_rate_l2:         {weight: 0.1}
+    joint_acc_l2:           {weight: 1e-6, joint_names: "(?!.*(wrist)).*"}
+    joint_limits:           {weight: 1.0, joint_names: "(?!.*(wrist)).*", offset: 0.0}
+    joint_tau_limits:       {weight: 0.1, joint_names: "(?!.*(wrist)).*", factor: 0.9}
 
 randomization:
-  # push:
-  #   body_names: ["torso_link", "pelvis"]
-  #   force_range: [0.0, 0.1]
   perturb_body_com:
     body_names: ["torso_link"]
-    pos_range: [-0.05, 0.05]
+    pos_range: [-0.1, 0.1]
   push_by_setting_velocity:
     velocity_range: [-1.0, 1.0]
   perturb_body_mass:
@@ -120,7 +124,8 @@ randomization:
 
 termination:
   success: {}
-  root_deviation:       {max_distance: 0.4}
+  # root_deviation:       {max_distance: 0.4}
+  root_z_deviation:     {threshold: 0.25}
   root_rot_deviation:   {threshold: 0.8}
   track_kp_z_error:     {threshold: 0.25, 
                         body_names: [ left_wrist_yaw_link, right_wrist_yaw_link,
