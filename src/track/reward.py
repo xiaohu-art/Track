@@ -20,6 +20,7 @@ SIGMA = {
     "tracking_anchor_pos": 0.3**2,
     "tracking_anchor_quat": 0.4**2,
     "tracking_qpos": 0.4**2,
+    "tracking_qvel": 3.14**2,
     "tracking_kp_pos": 0.3**2,
     "tracking_kp_quat": 0.4**2,
     "tracking_kp_lin_vel": 1.0**2,
@@ -71,6 +72,21 @@ class tracking_qpos(Reward[MotionLibG1]):
         ref_qpos = self.command_manager.joint_pos[timestep][:, self.joint_indices]
         qpos = self.robot.data.joint_pos[:, self.joint_indices]
         error = (qpos - ref_qpos).square().mean(-1, True)
+        reward = torch.exp(- error / self.sigma)
+        return reward
+
+class tracking_qvel(Reward[MotionLibG1]):
+    def __init__(self, env, weight: float = 1.0, joint_names: str = ".*") -> None:
+        super().__init__(env, weight)
+        self.robot = self.command_manager.robot
+        self.joint_indices, self.joint_names = self.robot.find_joints(joint_names, preserve_order=True)
+        self.sigma = torch.tensor(SIGMA["tracking_qvel"], device=self.device)
+
+    def compute(self) -> torch.Tensor:
+        timestep = self.command_manager.episode_start_frames + self.env.episode_length_buf - 1
+        ref_qvel = self.command_manager.joint_vel[timestep][:, self.joint_indices]
+        qvel = self.robot.data.joint_vel[:, self.joint_indices]
+        error = (qvel - ref_qvel).square().mean(-1, True)
         reward = torch.exp(- error / self.sigma)
         return reward
     

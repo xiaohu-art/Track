@@ -89,6 +89,8 @@ reward:
     tracking_anchor_quat:   {weight: 1.0}
     tracking_qpos:          {weight: 1.0, 
                              joint_names: "(?!.*(wrist)).*"}
+    tracking_qvel:          {weight: 1.0, 
+                             joint_names: "(?!.*(wrist)).*"}
     tracking_kp_pos:        {weight: 2.0}
     tracking_kp_quat:       {weight: 2.0}
     tracking_kp_lin_vel:    {weight: 2.0}
