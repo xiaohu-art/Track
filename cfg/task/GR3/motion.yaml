@@ -92,7 +92,7 @@ reward:
     tracking_kp_ang_vel:    {weight: 2.0}
 
     feet_slip:              {weight: 1.0, body_names: .*foot_roll_link}
-    action_rate_l2:         {weight: 0.2}
+    action_rate_l2:         {weight: 0.1}
 
 randomization:
   # push:
