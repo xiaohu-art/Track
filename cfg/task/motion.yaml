@@ -27,7 +27,7 @@ input:
       .*hip_roll.*: 0.351
       .*hip_yaw.*: 0.548
       .*knee.*: 0.351
-      waist_yaw_joint: 0.541
+      waist_yaw_joint: 0.548
       waist_roll_joint: 0.439
       waist_pitch_joint: 0.439
       .*ankle.*: 0.439
@@ -47,10 +47,10 @@ command:
 observation:
   policy:
     root_angvel_b:        {noise_std: 0.2}
-    gravity_multistep:    {steps: 4, noise_std: 0.05}
-    joint_pos_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 4, noise_std: 0.05}
-    joint_vel_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 4, noise_std: 0.5}
-    prev_actions:         {steps: 2}
+    gravity_multistep:    {steps: 1, noise_std: 0.05}
+    joint_pos_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 1, noise_std: 0.05}
+    joint_vel_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 1, noise_std: 0.5}
+    prev_actions:         {steps: 1}
     ref_qpos:             {}
     ref_qvel:             {}
     ref_linvel_b:         {}
@@ -58,10 +58,10 @@ observation:
   priv:
     root_linvel_b:        {}
     root_angvel_b:        {noise_std: 0.0}
-    gravity_multistep:    {steps: 4, noise_std: 0.0}
-    joint_pos_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 4, noise_std: 0.0}
-    joint_vel_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 4, noise_std: 0.0}
-    prev_actions:         {steps: 2}
+    gravity_multistep:    {steps: 1, noise_std: 0.0}
+    joint_pos_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 1, noise_std: 0.0}
+    joint_vel_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 1, noise_std: 0.0}
+    prev_actions:         {steps: 1}
     ref_qpos:             {}
     ref_qvel:             {}
     ref_linvel_b:         {}
@@ -108,7 +108,7 @@ randomization:
     body_names: ["torso_link"]
     pos_range: [-0.1, 0.1]
   push_by_setting_velocity:
-    velocity_range: [-1.0, 1.0]
+    velocity_range: [-5.0, 5.0]
   perturb_body_mass:
     ".*wrist_yaw_link": [1.0, 2.0]
     "^(?!.*wrist_yaw_link).*": [0.9, 1.1]

@@ -50,6 +50,7 @@ from active_adaptation.learning.modules import (
 )
 from active_adaptation.learning.ppo.common import *
 from active_adaptation.learning.ppo.ppo_base import PPOBase
+from active_adaptation.learning.utils.opt import OptimizerGroup
 
 import active_adaptation
 import torch.distributed as distr
@@ -168,14 +169,20 @@ class PPOPolicy(PPOBase):
                     distr.broadcast(param, src=0)
                 for param in self.critic.parameters():
                     distr.broadcast(param, src=0)
-        
-        self.opt = torch.optim.Adam(
-            [
-                {"params": self.actor.parameters()},
-                {"params": self.critic.parameters()},
-            ],
-            lr=cfg.lr
-        )
+                
+        def is_matrix_shaped(param: torch.Tensor) -> bool:
+            return param.dim() >= 2
+
+        muon = torch.optim.Muon([
+            {"params": [p for p in self.actor.parameters() if is_matrix_shaped(p)]},
+            {"params": [p for p in self.critic.parameters() if is_matrix_shaped(p)]},
+        ], lr=cfg.lr, adjust_lr_fn="match_rms_adamw", weight_decay=0.01)
+
+        adamw = torch.optim.AdamW([
+            {"params": [p for p in self.actor.parameters() if not is_matrix_shaped(p)]},
+            {"params": [p for p in self.critic.parameters() if not is_matrix_shaped(p)]},
+        ], lr=cfg.lr, weight_decay=0.01)
+        self.opt = OptimizerGroup([muon, adamw])
 
         self.update = self._update
         if self.cfg.compile and not active_adaptation.is_distributed():
