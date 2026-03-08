@@ -60,9 +60,9 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 class PPOConfig:
     _target_: str = f"{__package__}.ppo.PPOPolicy"
     name: str = "ppo_track"
-    train_every: int = 32
+    train_every: int = 24
     ppo_epochs: int = 5
-    num_minibatches: int = 8
+    num_minibatches: int = 4
     lr: float = 1e-3
     desired_kl: Union[float, None] = 0.01
     clip_param: float = 0.2
@@ -83,6 +83,17 @@ class PPOConfig:
 cs = ConfigStore.instance()
 cs.store("ppo_track", node=PPOConfig, group="algo")
 
+
+class Actor(nn.Module):
+    def __init__(self, action_dim: int, init_std: float = 0.5) -> None:
+        super().__init__()
+        self.actor_mean = nn.LazyLinear(action_dim)
+        self.actor_std = nn.Parameter(torch.ones(action_dim) * init_std)
+
+    def forward(self, features: torch.Tensor):
+        loc = self.actor_mean(features)
+        scale = torch.ones_like(loc) * self.actor_std
+        return loc, scale
 
 class PPOPolicy(PPOBase):
 
