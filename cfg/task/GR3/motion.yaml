@@ -1,0 +1,127 @@
+# @package task
+project: track
+name: Motion
+
+viewer:
+  resolution: [1280, 720]
+  lookat: [0., 0., 0.]
+  eye: [2.0, 2.0, 1.0]
+
+robot: 
+  name: gr3_fourier_hand_6dof
+terrain: plane
+
+num_envs: 4096
+max_episode_length: 10000
+
+sim:
+  step_dt: 0.02
+  isaac_physics_dt: 0.005
+  mujoco_physics_dt: 0.002
+
+input:
+  action:
+    class: JointPosition
+    action_scaling:
+      .*hip_pitch.*: 0.548
+      .*hip_roll.*: 0.351
+      .*hip_yaw.*: 0.548
+      .*knee_pitch.*: 0.351
+      waist_yaw_joint: 0.541
+      waist_roll_joint: 0.439
+      waist_pitch_joint: 0.439
+      .*ankle.*: 0.439
+      .*shoulder.*: 0.173
+      .*elbow_pitch.*: 0.173
+      # .*wrist_roll.*: 0.173
+      # .*wrist_pitch.*: 0.293
+      # .*wrist_yaw.*: 0.293
+    max_delay: 1
+    alpha_range: [0.8, 1.0]
+
+command:
+  class: MotionLibGR3
+  dataset: [ gr3/sfu_29dof]
+  occlusion: "amass_copycat_occlusion_v3.pkl"
+
+observation:
+  policy:
+    root_linvel_b:        {}
+    root_angvel_b:        {noise_std: 0.2}
+    gravity_multistep:    {steps: 4, noise_std: 0.05}
+    joint_pos_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 4, noise_std: 0.05}
+    prev_actions:         {steps: 2}
+    ref_qpos:             {}
+    ref_root_pos:         {}
+    ref_root_quat:        {}
+  priv:
+    root_linvel_b:        {}
+    root_angvel_b:        {noise_std: 0.0}
+    gravity_multistep:    {steps: 4, noise_std: 0.0}
+    joint_pos_multistep:  {joint_names: "(?!.*(wrist)).*", steps: 4, noise_std: 0.0}
+    prev_actions:         {steps: 2}
+    ref_qpos:             {}
+    ref_root_pos:         {}
+    ref_root_quat:        {}
+    ref_kp_pos_gap:       {}
+    ref_kp_quat_gap:      {}
+    body_pos_b:           {body_names: [left_thigh_pitch_link, right_thigh_pitch_link, 
+                                        left_shank_pitch_link, right_shank_pitch_link, 
+                                        left_foot_roll_link, right_foot_roll_link, 
+                                        left_upper_arm_pitch_link, right_upper_arm_pitch_link, 
+                                        left_lower_arm_pitch_link, right_lower_arm_pitch_link, 
+                                        left_hand_roll_link, right_hand_roll_link],
+                                        yaw_only: false}
+    # body_ori_b:           {body_names: [left_thigh_pitch_link, right_thigh_pitch_link, 
+    #                                     left_shank_pitch_link, right_shank_pitch_link, 
+    #                                     left_foot_roll_link, right_foot_roll_link, 
+    #                                     left_upper_arm_pitch_link, right_upper_arm_pitch_link, 
+    #                                     left_lower_arm_pitch_link, right_lower_arm_pitch_link, 
+    #                                     left_hand_roll_link, right_hand_roll_link],
+    #                                     yaw_only: false}
+
+reward:
+  loco:
+    tracking_anchor_pos:    {weight: 1.0}
+    tracking_anchor_quat:   {weight: 1.0}
+    tracking_qpos:          {weight: 1.0, 
+                             joint_names: "(?!.*(wrist)).*"}
+    tracking_kp_pos:        {weight: 2.0}
+    tracking_kp_quat:       {weight: 2.0}
+    tracking_kp_lin_vel:    {weight: 2.0}
+    tracking_kp_ang_vel:    {weight: 2.0}
+
+    feet_slip:              {weight: 1.0, body_names: .*foot_roll_link}
+    action_rate_l2:         {weight: 0.1}
+
+randomization:
+  # push:
+  #   body_names: ["base_link"]
+  #   force_range: [0.0, 0.1]
+  perturb_body_com:
+    body_names: ["base_link"]
+    pos_range: [-0.05, 0.05]
+  push_by_setting_velocity:
+    velocity_range: [-1.0, 1.0]
+  perturb_body_mass:
+    ".*hand_roll_link": [1.0, 2.0]
+    "^(?!.*hand_roll_link).*": [0.9, 1.1]
+    # .*: [0.9, 1.1]
+  perturb_body_materials:
+    body_names: ".*foot_roll_link"
+    static_friction_range: [0.2, 1.6]
+    dynamic_friction_range: [0.2, 1.2]
+    restitution_range: [0.0, 0.5]
+  motor_params:
+    stiffness_range:
+      .*: [0.8, 1.1]
+    damping_range:
+      .*: [0.8, 1.1]
+
+termination:
+  success: {}
+  root_deviation:       {max_distance: 0.4}
+  root_rot_deviation:   {threshold: 0.8}
+  track_kp_z_error:     {threshold: 0.25, 
+                        body_names: [ left_hand_roll_link, right_hand_roll_link,
+                                      left_foot_roll_link, right_foot_roll_link]}

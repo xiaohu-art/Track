@@ -353,3 +353,100 @@ class MotionLibG1(MotionLib):
             anchor_body,
             keypoint_body,
         )
+
+class MotionLibGR3(MotionLib):
+    
+    def __init__(
+            self, 
+            env,
+            dataset: List[str],
+            occlusion: str,
+            pose_range: Dict[str, Tuple[float, float]] = {
+                "x": (-0.05, 0.05),
+                "y": (-0.05, 0.05),
+                "z": (-0.01, 0.01),
+                "roll": (-0.1, 0.1),
+                "pitch": (-0.1, 0.1),
+                "yaw": (-1.5, 1.5),
+            },
+            velocity_range: Dict[str, Tuple[float, float]] = {
+                "x": (-0.2, 0.2),
+                "y": (-0.2, 0.2),
+                "z": (-0.2, 0.2),
+                "roll": (-0.52, 0.52),
+                "pitch": (-0.52, 0.52),
+                "yaw": (-0.78, 0.78),
+            },
+            joint_range: Tuple[float, float] = (-0.1, 0.1),
+            anchor_body: str = "base_link",
+            keypoint_body: List[str] = [
+                                        "base_link",
+                                        "left_thigh_pitch_link", "right_thigh_pitch_link", 
+                                        "left_shank_pitch_link", "right_shank_pitch_link", 
+                                        "left_foot_roll_link", "right_foot_roll_link", 
+                                        "left_upper_arm_pitch_link", "right_upper_arm_pitch_link", 
+                                        "left_lower_arm_pitch_link", "right_lower_arm_pitch_link", 
+                                        "left_hand_roll_link", "right_hand_roll_link"
+                                        ],
+        ):
+        # 定义 29 个核心关节（不含手指和头部）
+        self.core_joint_names = [
+            "waist_yaw_joint", "waist_roll_joint", "waist_pitch_joint",
+            "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint", "left_knee_pitch_joint", "left_ankle_pitch_joint", "left_ankle_roll_joint",
+            "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint", "right_knee_pitch_joint", "right_ankle_pitch_joint", "right_ankle_roll_joint",
+            "left_shoulder_pitch_joint", "left_shoulder_roll_joint", "left_shoulder_yaw_joint", "left_elbow_pitch_joint", "left_wrist_yaw_joint", "left_wrist_pitch_joint", "left_wrist_roll_joint",
+            "right_shoulder_pitch_joint", "right_shoulder_roll_joint", "right_shoulder_yaw_joint", "right_elbow_pitch_joint", "right_wrist_yaw_joint", "right_wrist_pitch_joint", "right_wrist_roll_joint"
+        ]
+        
+        super().__init__(
+            env,
+            dataset,
+            occlusion,
+            pose_range,
+            velocity_range,
+            joint_range,
+            anchor_body,
+            keypoint_body,
+        )
+
+    def load_data(self, data):
+        robot_joint_names = self.robot.joint_names
+        robot_body_names = self.robot.body_names
+        
+        mapped_data = {}
+        for k, motion in data.items():
+            T = motion["joint_pos"].shape[0]
+            
+            # 情况 A: 输入数据是 29 个核心关节 (G1 同步后的核心)
+            if motion["joint_pos"].shape[1] == 29:
+                new_joint_pos = np.zeros((T, len(robot_joint_names)), dtype=np.float32)
+                new_joint_vel = np.zeros((T, len(robot_joint_names)), dtype=np.float32)
+                for i, name in enumerate(self.core_joint_names):
+                    if name in robot_joint_names:
+                        idx = robot_joint_names.index(name)
+                        new_joint_pos[:, idx] = motion["joint_pos"][:, i]
+                        new_joint_vel[:, idx] = motion["joint_vel"][:, i]
+                motion["joint_pos"] = new_joint_pos
+                motion["joint_vel"] = new_joint_vel
+            
+            # 填充 Body 信息以匹配机器人结构
+            if motion["body_pos_w"].shape[1] != len(robot_body_names):
+                new_body_pos = np.zeros((T, len(robot_body_names), 3), dtype=np.float32)
+                new_body_quat = np.zeros((T, len(robot_body_names), 4), dtype=np.float32)
+                new_body_quat[..., 0] = 1.0 
+                new_body_lin = np.zeros((T, len(robot_body_names), 3), dtype=np.float32)
+                new_body_ang = np.zeros((T, len(robot_body_names), 3), dtype=np.float32)
+                
+                new_body_pos[:, 0] = motion["body_pos_w"][:, 0]
+                new_body_quat[:, 0] = motion["body_quat_w"][:, 0]
+                new_body_lin[:, 0] = motion["body_lin_vel_w"][:, 0]
+                new_body_ang[:, 0] = motion["body_ang_vel_w"][:, 0]
+                
+                motion["body_pos_w"] = new_body_pos
+                motion["body_quat_w"] = new_body_quat
+                motion["body_lin_vel_w"] = new_body_lin
+                motion["body_ang_vel_w"] = new_body_ang
+
+            mapped_data[k] = motion
+            
+        super().load_data(mapped_data)
