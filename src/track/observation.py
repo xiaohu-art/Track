@@ -155,3 +155,27 @@ class ref_kp_quat_gap(Observation[MotionLibG1]):
         _, quat = subtract_frame_transforms(body_kp_pos, body_kp_quat, ref_kp_pos, ref_kp_quat)
         mat = matrix_from_quat(quat)
         return mat[..., :2].reshape(self.num_envs, -1)
+
+class ref_body_pos_local(Observation[MotionLibG1]):
+    """Reference body positions expressed in the reference root's local frame.
+    
+    ref_body_pos_local = quat_apply_inverse(ref_root_quat, ref_body_pos - ref_root_pos)
+    """
+    def __init__(self, env, body_names: str = ".*"):
+        super().__init__(env)
+        self.robot = self.command_manager.robot
+        self.body_indices, _ = self.robot.find_bodies(body_names)
+        self.num_bodies = len(self.body_indices)
+
+    def compute(self) -> torch.Tensor:
+        current_frames = self.command_manager.episode_start_frames + self.env.episode_length_buf
+        current_frames = torch.min(current_frames, self.command_manager.episode_end_frames - 1)
+
+        ref_body_pos = self.command_manager.body_pos_w[current_frames][:, self.body_indices]  # (N, B, 3)
+        ref_root_pos = self.command_manager.root_pos_w[current_frames]  # (N, 3)
+        ref_root_quat = self.command_manager.root_quat_w[current_frames]  # (N, 4)
+
+        relative_pos = ref_body_pos - ref_root_pos[:, None, :]  # (N, B, 3)
+        ref_root_quat = ref_root_quat[:, None, :].repeat(1, self.num_bodies, 1)
+        local_pos = quat_apply_inverse(ref_root_quat, relative_pos)
+        return local_pos.reshape(self.num_envs, -1)
