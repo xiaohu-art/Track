@@ -83,6 +83,13 @@ class MotionLib(Command):
         self.episode_motion_ids = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self._init_adaptive()
 
+        self.env.max_episode_length = torch.full(
+            (self.num_envs, 1),
+            self.env.max_episode_length,
+            device=self.device,
+            dtype=torch.long
+        )
+
     def _init_adaptive(self):
         self.bin_size = 50
         self.adaptive_kernel_size = 1
@@ -185,6 +192,8 @@ class MotionLib(Command):
         end_frames = self.end_frames[motion_ids]
         if self.env.training:
             start_frames += sampled_bins * self.bin_size
+
+        self.env.max_episode_length[env_ids] = (end_frames - start_frames).unsqueeze(1)
 
         self.episode_motion_ids[env_ids] = motion_ids
         self.episode_start_frames[env_ids] = start_frames

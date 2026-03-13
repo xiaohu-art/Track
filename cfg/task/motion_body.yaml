@@ -12,7 +12,7 @@ robot:
 terrain: plane
 
 num_envs: 4096
-max_episode_length: 10000
+max_episode_length: 1000
 
 sim:
   step_dt: 0.02
@@ -101,7 +101,7 @@ reward:
     tracking_kp_lin_vel:    {weight: 2.0}
     tracking_kp_ang_vel:    {weight: 2.0}
 
-    action_rate_l2:         {weight: 0.2}
+    action_rate_l2:         {weight: 0.3}
     joint_limits:           {weight: 10.0, joint_names: "(?!.*(wrist)).*", offset: 0.0}
 
 randomization:
@@ -126,7 +126,7 @@ randomization:
       .*: [0.8, 1.1]
 
 termination:
-  success: {}
+  # success: {}
   # root_deviation:       {max_distance: 0.4}
   root_z_deviation:     {threshold: 0.25}
   root_rot_deviation:   {threshold: 0.8}
