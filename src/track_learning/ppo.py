@@ -180,20 +180,14 @@ class PPOPolicy(PPOBase):
                     distr.broadcast(param, src=0)
                 for param in self.critic.parameters():
                     distr.broadcast(param, src=0)
-                
-        def is_matrix_shaped(param: torch.Tensor) -> bool:
-            return param.dim() >= 2
 
-        muon = torch.optim.Muon([
-            {"params": [p for p in self.actor.parameters() if is_matrix_shaped(p)]},
-            {"params": [p for p in self.critic.parameters() if is_matrix_shaped(p)]},
-        ], lr=cfg.lr, adjust_lr_fn="match_rms_adamw", weight_decay=0.01)
-
-        adamw = torch.optim.AdamW([
-            {"params": [p for p in self.actor.parameters() if not is_matrix_shaped(p)]},
-            {"params": [p for p in self.critic.parameters() if not is_matrix_shaped(p)]},
-        ], lr=cfg.lr, weight_decay=0.01)
-        self.opt = OptimizerGroup([muon, adamw])
+        self.opt = torch.optim.Adam(
+            [
+                {"params": self.actor.parameters()},
+                {"params": self.critic.parameters()},
+            ],
+            lr=cfg.lr
+        )
 
         self.update = self._update
         if self.cfg.compile and not active_adaptation.is_distributed():
@@ -236,12 +230,27 @@ class PPOPolicy(PPOBase):
 
                 if self.cfg.desired_kl is not None: # adaptive learning rate
                     kl = infos[-1]["actor/approx_kl"]
-                    actor_lr = self.opt.param_groups[0]["lr"]
-                    if kl > self.cfg.desired_kl * 2.0:
-                        actor_lr = max(1e-5, actor_lr / 1.5)
-                    elif kl < self.cfg.desired_kl / 2.0 and kl > 0.0:
-                        actor_lr = min(1e-3, actor_lr * 1.5)
-                    self.opt.param_groups[0]["lr"] = actor_lr
+                    if active_adaptation.is_distributed():
+                        # Step 1: allreduce KL
+                        kl_tensor = torch.tensor(kl, device=self.device)
+                        distr.all_reduce(kl_tensor, op=distr.ReduceOp.SUM)
+                        kl_tensor /= self.world_size
+                        kl = kl_tensor.item()
+                    
+                    # Step 2: adjust learning rate
+                    if not active_adaptation.is_distributed() or active_adaptation.is_main_process():
+                        actor_lr = self.opt.param_groups[0]["lr"]
+                        if kl > self.cfg.desired_kl * 2.0:
+                            actor_lr = max(1e-5, actor_lr / 1.5)
+                        elif kl < self.cfg.desired_kl / 2.0 and kl > 0.0:
+                            actor_lr = min(1e-3, actor_lr * 1.5)
+                        self.opt.param_groups[0]["lr"] = actor_lr
+                    
+                    # Step 3: broadcast LR
+                    if active_adaptation.is_distributed():
+                        lr_tensor = torch.tensor(self.opt.param_groups[0]["lr"], device=self.device)
+                        distr.broadcast(lr_tensor, src=0)
+                        self.opt.param_groups[0]["lr"] = lr_tensor.item()
         
         with torch.no_grad():
             tensordict_ = self.actor(tensordict.copy())
@@ -266,7 +275,8 @@ class PPOPolicy(PPOBase):
                 infos["vecnorm/scale_diff_max"] = max(scale_diffs)
                 infos["vecnorm/loc_diff_mean"] = sum(loc_diffs) / len(loc_diffs)
                 infos["vecnorm/scale_diff_mean"] = sum(scale_diffs) / len(scale_diffs)
-            self.vecnorm[0].module.synchronize(mode="broadcast")
+            self.vecnorm[0].module.synchronize(mode="aggregate")
+            self.vecnorm[1].module.synchronize(mode="aggregate")
         return dict(sorted(infos.items()))
 
     def _update(self, tensordict: TensorDict):
