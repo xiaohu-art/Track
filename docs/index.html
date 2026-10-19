@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="HuMiT: Low-Latency Whole-Body Humanoid Teleoperation via Minimal Reference Tracking">
+  <meta name="description" content="HuMiT: Low-Latency Whole-Body Humanoid Teleoperation via Compact Reference Tracking">
   <title>HuMiT | Project Page</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23222'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-size='38' font-weight='700' fill='%23fff'%3EH%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
@@ -25,7 +25,7 @@
 
   <div class="main-content">
     <div class="hero-text">HuMiT</div>
-    <div class="sub-hero-text">Low-Latency Whole-Body Humanoid Teleoperation via Minimal Reference Tracking</div>
+    <div class="sub-hero-text">Low-Latency Whole-Body Humanoid Teleoperation via Compact Reference Tracking</div>
 
     <div class="authors">
       <div class="author-list">
@@ -33,60 +33,64 @@
         <a href="https://btx0424.github.io/">Botian Xu</a><sup>2</sup>,
         <a href="https://ruoqu.cc/">Ruoqu Chen</a><sup>1</sup>,
         <a href="https://jedward225.github.io/">Jiajun Liu</a><sup>3</sup>,
-        Mingzhi Pei<sup>1</sup>,
-        <a href="https://ggkiller-air.github.io/">Zihao Wang</a><sup>1</sup>,
+        Mingzhi Pei<sup>4</sup>,
+        <a href="https://ggkiller-air.github.io/">Zihao Wang</a><sup>5</sup>,
         <a href="https://zyliatzju.github.io/">Zhongyu Li</a><sup>2</sup>,
         <a href="https://www.mengdixu.me/">Mengdi Xu</a><sup>1</sup>
       </div>
       <div class="affiliations">
-        <span><sup>1</sup>Tsinghua University</span>
+        <span><sup>1</sup>Tsinghua IIIS</span>
         <span><sup>2</sup>The Chinese University of Hong Kong</span>
         <span><sup>3</sup>Renmin University of China</span>
+        <span><sup>4</sup>Tsinghua College AI</span>
+        <span><sup>5</sup>Tsinghua Weiyang College</span>
       </div>
     </div>
 
     <video id="teaser-video" src="./media/demo.mp4" width="100%" height="100%" controls muted playsinline autoplay loop></video>
     <p class="figure-caption">
-        <span style="font-variant: small-caps;">HuMiT</span> is a low-latency whole-body teleoperation system that drives a humanoid from sparse human keypoints alone, letting robots perform reactive and coordinated whole-body skills (ball catching, loco-manipulation) with approximately 20 ms communication-to-inference latency.
+        <span style="font-variant: small-caps;">HuMiT</span> uses a compact reference target to drive responsive whole-body teleoperation, with approximately 20 ms communication-to-inference latency and 65 ms median operator-to-robot latency measured from video.
     </p>
 
     <div class="quick-links">
-      <!-- Replace the two placeholder URLs after the public paper is available. -->
-      <a href="https://arxiv.org/search/?query=HuMiT%3A+Low-Latency+Whole-Body+Humanoid+Teleoperation+via+Minimal+Reference+Tracking&amp;searchtype=all" target="_blank" rel="noopener noreferrer">[paper]</a>
-      <a href="https://arxiv.org/search/?query=HuMiT%3A+Low-Latency+Whole-Body+Humanoid+Teleoperation+via+Minimal+Reference+Tracking&amp;searchtype=all" target="_blank" rel="noopener noreferrer">[arXiv]</a>
+      <a href="./humit.pdf" target="_blank" rel="noopener noreferrer">[paper]</a>
+      <!-- Replace this search URL with the arXiv abstract URL when available. -->
+      <a href="https://arxiv.org/search/?query=HuMiT%3A+Low-Latency+Whole-Body+Humanoid+Teleoperation+via+Compact+Reference+Tracking&amp;searchtype=all" target="_blank" rel="noopener noreferrer">[arXiv]</a>
       <a href="https://github.com/xiaohu-art/Track" target="_blank" rel="noopener noreferrer">[code]</a>
     </div>
 
     <div class="tagline" id="abstract">Abstract</div>
 
     <div class="section">
-        Real-time whole-body humanoid teleoperation remains challenging due to the computational latency introduced by optimization-based retargeting pipelines and future-frame anticipation. Existing motion tracking policies typically require dense reference targets including full joint positions, body-part transformations, and even future frames, which tightly couples the controller to expensive upstream modules.
-        In this work, we present <span style="font-variant: small-caps;">HuMiT</span>, a whole-body teleoperation system built on a unified tracking policy that requires only a <em>minimal</em> reference target&mdash;consisting only of root height, root velocity, and sparse keypoint positions at the current frame&mdash;yet achieves competitive or superior tracking fidelity compared to methods relying on full reference states.
-        Experiments show that our policy achieves a communication-to-inference latency of ~20ms and an externally measured end-to-end latency of ~80ms (median), significantly lower than the 200ms+ typical of existing systems.
-        We validate the system on a Unitree G1 humanoid, showcasing split-second reactive responses such as catching a tossed ball, as well as coordinated loco-manipulation capabilities.
+        Real-time whole-body humanoid teleoperation remains challenging due to the computational latency introduced by optimization-based retargeting pipelines and future-frame conditioning. Existing motion tracking policies typically require dense reference targets including full joint positions, body-part transformations, and even future frames, which tightly couples the controller to expensive upstream modules.
+        In this work, we present <span style="font-variant: small-caps;">HuMiT</span>, a whole-body teleoperation system built on a unified tracking policy that requires only a compact reference target, consisting of root height, root velocity, and the SE(3) poses of four sparse keypoints at the current frame, yet achieves competitive tracking fidelity compared to methods relying on more diverse reference states including complete joint positions, dense body-part transformations, and even future frames.
+        Experiments show that our policy achieves a communication-to-inference latency of &sim;20 ms measured between headset streaming and policy output and a video-based optical flow latency of 65 ms (median) across different motion types.
+        We validate the system on a Unitree G1 humanoid, showcasing split-second reactive responses such as catching a tossed ball, as well as coordinated loco-manipulation capabilities. Project page: <a href="https://xiaohu-art.github.io/Track/">https://xiaohu-art.github.io/Track/</a>.
     </div>
 
     <div class="tagline" id="method">Method</div>
 
     <div class="section">
-        The central design choice of HuMiT is that <em>&pi;</em> observes only the <b>minimal reference target (MRT)</b> &mdash;root height, root linear and angular velocity, and body-part keypoint positions at the current frame in the robot frame&mdash;without joint-level references, body-part orientations, or any future-frame information. This reduces the upstream pipeline to two lightweight components:
+        The central design choice of HuMiT is that <em>&pi;</em> observes only the <b>compact reference target (CRT)</b> &mdash;root height, root linear and angular velocity, and the root-relative SE(3) poses of four sparse keypoints (both wrists and ankles) at the current frame&mdash;without joint-level references, states of the remaining body parts, or future-frame information. This reduces the upstream pipeline to two lightweight components:
         <ul>
             <li>A motion-sensing module that captures the operator's body keypoints via a VR headset with motion trackers,</li>
             <li>A scale-calibration module that maps human keypoint positions to the robot's body positions in closed form, in place of an optimization-based retargeting loop.</li>
         </ul>
     </div>
 
-    <img src="./media/system.png" alt="HuMiT system overview" style="display: block; width: 100%; max-width: 1280px; position: relative; left: 50%; transform: translateX(-50%); height: auto; margin: 20px 0;">
+    <a href="./media/system.png" target="_blank" rel="noopener noreferrer" aria-label="Open the full-size HuMiT method figure">
+      <img src="./media/system.png" alt="HuMiT training and teleoperation pipeline with compact reference targets" style="display: block; width: 100%; max-width: 1280px; position: relative; left: 50%; transform: translateX(-50%); height: auto; margin: 20px 0;">
+    </a>
     <p class="figure-caption">
-        <b>System overview.</b> Retargeting and future-frame buffering are removed from the online loop; the Actor tracks the minimal reference, while the Critic uses the full retargeted reference for supervision during training.
+        <b>Method overview.</b> Human motion passes through scale calibration to produce a compact reference target. Online inverse kinematics and future-frame buffering are removed. During training, the Actor receives the compact reference and proprioception, while the Critic also observes privileged states and full retargeted references.
     </p>
 
     <div class="tagline" id="latency">Latency Measurement</div>
 
     <div class="section">
-        To measure end-to-end latency, we record the operator and robot side by side at 50&nbsp;fps during a repetitive waving motion and match peaks of their dense optical-flow signals.
+        To measure end-to-end latency, we record the operator and robot in the same camera frame at 200&nbsp;fps during punching, squatting, and waving, then match peaks of their optical-flow motion signals.
         <br><br>
-        HuMiT achieves a <b>minimum of 20&nbsp;ms</b> and a <b>median of 80&nbsp;ms</b> end-to-end latency&mdash;substantially lower than the 200&nbsp;ms+ delay of future-frame buffering and the 100&nbsp;ms+ overhead of online IK retargeting&mdash;confirming that the minimal-reference design is fast enough for time-critical, coordinated teleoperation.
+        HuMiT achieves approximately <b>20&nbsp;ms communication-to-inference latency</b> and <b>65&nbsp;ms median end-to-end latency</b> across the three motion types. Under the same external protocol, the paper reports 245&nbsp;ms for SONIC, 145&nbsp;ms for SONIC-LL, and 120&nbsp;ms for TWIST2.
     </div>
 
     <video src="./media/latency.mp4" style="display: block; width: 100%; max-width: 1280px; position: relative; left: 50%; transform: translateX(-50%); height: auto; margin: 20px 0;" controls muted playsinline autoplay loop></video>
@@ -102,7 +106,7 @@
 
     <video src="./media/track.mp4" style="display: block; width: 100%; max-width: 1280px; position: relative; left: 50%; transform: translateX(-50%); height: auto; margin: 20px 0;" controls muted playsinline autoplay loop></video>
     <p class="figure-caption">
-        Real-time teleoperation tracking on the Unitree G1: the robot follows the operator's whole-body motion driven by the minimal reference target alone.
+        Real-time teleoperation tracking on the Unitree G1: the robot follows the operator's whole-body motion driven by the compact reference target alone.
     </p>
 
     <div class="tagline" id="reactive">Reactive Response</div>
