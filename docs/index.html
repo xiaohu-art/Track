@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="HuMiT: Low-Latency Whole-Body Humanoid Teleoperation via Minimal Reference Tracking">
+  <title>HuMiT | Project Page</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23222'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-size='38' font-weight='700' fill='%23fff'%3EH%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="toc">
+    <h3>Content</h3>
+    <hr>
+    <ul>
+      <li><a href="#abstract">Abstract</a></li>
+      <li><a href="#method">Method</a></li>
+      <li><a href="#latency">Latency Measurement</a></li>
+      <li><a href="#tracking">Teleoperation Tracking</a></li>
+      <li><a href="#reactive">Reactive Response</a></li>
+      <li><a href="#whole-body">Coordinated Whole-Body Skills</a></li>
+      <li><a href="#failure">Failure Cases</a></li>
+    </ul>
+  </div>
+
+  <div class="main-content">
+    <div class="hero-text">HuMiT</div>
+    <div class="sub-hero-text">Low-Latency Whole-Body Humanoid Teleoperation via Minimal Reference Tracking</div>
+
+    <div class="authors">
+      <div class="author-list">
+        <a href="https://xiaohu-art.github.io/">Liu Cao</a><sup>1</sup>,
+        <a href="https://btx0424.github.io/">Botian Xu</a><sup>2</sup>,
+        <a href="https://ruoqu.cc/">Ruoqu Chen</a><sup>1</sup>,
+        <a href="https://jedward225.github.io/">Jiajun Liu</a><sup>3</sup>,
+        Mingzhi Pei<sup>1</sup>,
+        <a href="https://ggkiller-air.github.io/">Zihao Wang</a><sup>1</sup>,
+        <a href="https://zyliatzju.github.io/">Zhongyu Li</a><sup>2</sup>,
+        <a href="https://www.mengdixu.me/">Mengdi Xu</a><sup>1</sup>
+      </div>
+      <div class="affiliations">
+        <span><sup>1</sup>Tsinghua University</span>
+        <span><sup>2</sup>The Chinese University of Hong Kong</span>
+        <span><sup>3</sup>Renmin University of China</span>
+      </div>
+    </div>
+
+    <video id="teaser-video" src="./media/demo.mp4" width="100%" height="100%" controls muted playsinline autoplay loop></video>
+    <p class="figure-caption">
+        <span style="font-variant: small-caps;">HuMiT</span> is a low-latency whole-body teleoperation system that drives a humanoid from sparse human keypoints alone, letting robots perform reactive and coordinated whole-body skills (ball catching, loco-manipulation) with approximately 20 ms communication-to-inference latency.
+    </p>
+
+    <div class="quick-links">
+      <!-- Replace the two placeholder URLs after the public paper is available. -->
+      <a href="https://arxiv.org/search/?query=HuMiT%3A+Low-Latency+Whole-Body+Humanoid+Teleoperation+via+Minimal+Reference+Tracking&amp;searchtype=all" target="_blank" rel="noopener noreferrer">[paper]</a>
+      <a href="https://arxiv.org/search/?query=HuMiT%3A+Low-Latency+Whole-Body+Humanoid+Teleoperation+via+Minimal+Reference+Tracking&amp;searchtype=all" target="_blank" rel="noopener noreferrer">[arXiv]</a>
+      <a href="https://github.com/xiaohu-art/Track" target="_blank" rel="noopener noreferrer">[code]</a>
+    </div>
+
+    <div class="tagline" id="abstract">Abstract</div>
+
+    <div class="section">
+        Real-time whole-body humanoid teleoperation remains challenging due to the computational latency introduced by optimization-based retargeting pipelines and future-frame anticipation. Existing motion tracking policies typically require dense reference targets including full joint positions, body-part transformations, and even future frames, which tightly couples the controller to expensive upstream modules.
+        In this work, we present <span style="font-variant: small-caps;">HuMiT</span>, a whole-body teleoperation system built on a unified tracking policy that requires only a <em>minimal</em> reference target&mdash;consisting only of root height, root velocity, and sparse keypoint positions at the current frame&mdash;yet achieves competitive or superior tracking fidelity compared to methods relying on full reference states.
+        Experiments show that our policy achieves a communication-to-inference latency of ~20ms and an externally measured end-to-end latency of ~80ms (median), significantly lower than the 200ms+ typical of existing systems.
+        We validate the system on a Unitree G1 humanoid, showcasing split-second reactive responses such as catching a tossed ball, as well as coordinated loco-manipulation capabilities.
+    </div>
+
+    <div class="tagline" id="method">Method</div>
+
+    <div class="section">
+        The central design choice of HuMiT is that <em>&pi;</em> observes only the <b>minimal reference target (MRT)</b> &mdash;root height, root linear and angular velocity, and body-part keypoint positions at the current frame in the robot frame&mdash;without joint-level references, body-part orientations, or any future-frame information. This reduces the upstream pipeline to two lightweight components:
+        <ul>
+            <li>A motion-sensing module that captures the operator's body keypoints via a VR headset with motion trackers,</li>
+            <li>A scale-calibration module that maps human keypoint positions to the robot's body positions in closed form, in place of an optimization-based retargeting loop.</li>
+        </ul>
+    </div>
+
+    <img src="./media/system.png" alt="HuMiT system overview" style="display: block; width: 100%; max-width: 1280px; position: relative; left: 50%; transform: translateX(-50%); height: auto; margin: 20px 0;">
+    <p class="figure-caption">
+        <b>System overview.</b> Retargeting and future-frame buffering are removed from the online loop; the Actor tracks the minimal reference, while the Critic uses the full retargeted reference for supervision during training.
+    </p>
+
+    <div class="tagline" id="latency">Latency Measurement</div>
+
+    <div class="section">
+        To measure end-to-end latency, we record the operator and robot side by side at 50&nbsp;fps during a repetitive waving motion and match peaks of their dense optical-flow signals.
+        <br><br>
+        HuMiT achieves a <b>minimum of 20&nbsp;ms</b> and a <b>median of 80&nbsp;ms</b> end-to-end latency&mdash;substantially lower than the 200&nbsp;ms+ delay of future-frame buffering and the 100&nbsp;ms+ overhead of online IK retargeting&mdash;confirming that the minimal-reference design is fast enough for time-critical, coordinated teleoperation.
+    </div>
+
+    <video src="./media/latency.mp4" style="display: block; width: 100%; max-width: 1280px; position: relative; left: 50%; transform: translateX(-50%); height: auto; margin: 20px 0;" controls muted playsinline autoplay loop></video>
+    <p class="figure-caption">
+        Side-by-side recording of the operator and the Unitree G1 used for the latency analysis.
+    </p>
+
+    <div class="tagline" id="tracking">Teleoperation Tracking</div>
+
+    <div class="section">
+        Beyond raw latency, the policy must faithfully reproduce the operator's intent in real time. We qualitatively evaluate whole-body tracking by streaming live human motion to the Unitree G1 and observing how closely the robot mirrors arm gestures, locomotion, and coupled upper&ndash;lower-body coordination.
+    </div>
+
+    <video src="./media/track.mp4" style="display: block; width: 100%; max-width: 1280px; position: relative; left: 50%; transform: translateX(-50%); height: auto; margin: 20px 0;" controls muted playsinline autoplay loop></video>
+    <p class="figure-caption">
+        Real-time teleoperation tracking on the Unitree G1: the robot follows the operator's whole-body motion driven by the minimal reference target alone.
+    </p>
+
+    <div class="tagline" id="reactive">Reactive Response</div>
+
+    <div class="section">
+        Low end-to-end latency unlocks tasks that demand split-second reactions. We toss a ball toward the operator: the operator reaches out instinctively, and the robot mirrors the motion in real time, catching the ball with its glove. Even moderate teleoperation delays would make this task infeasible.
+    </div>
+
+    <div class="media-grid media-grid--three">
+        <figure style="margin: 0;">
+            <video src="./media/catch-1.mp4" style="width: 100%; height: auto; border-radius: 12px; display: block;" controls muted playsinline autoplay loop></video>
+        </figure>
+        <figure style="margin: 0;">
+            <video src="./media/catch-2.mp4" style="width: 100%; height: auto; border-radius: 12px; display: block;" controls muted playsinline autoplay loop></video>
+        </figure>
+        <figure style="margin: 0;">
+            <video src="./media/catch-3.mp4" style="width: 100%; height: auto; border-radius: 12px; display: block;" controls muted playsinline autoplay loop></video>
+        </figure>
+    </div>
+
+    <div class="tagline" id="whole-body">Coordinated Whole-Body Skills</div>
+
+    <div class="section">
+        Driven by a single unified policy, the operator commands the Unitree G1 through a range of everyday whole-body skills: carrying a water jug, pushing a chair, walking up to and sitting on a chair, and reaching overhead to hang clothes. These behaviors require tight coordination between locomotion and manipulation, which decoupled upper&ndash;lower-body controllers struggle to achieve.
+    </div>
+
+    <div class="media-grid media-grid--two">
+        <figure style="margin: 0;">
+            <video src="./media/water-bucket.mp4" style="width: 100%; height: auto; border-radius: 12px; display: block;" controls muted playsinline autoplay loop></video>
+            <figcaption class="figure-caption" style="margin-top: 8px;">Carrying a water jug across the workspace.</figcaption>
+        </figure>
+        <figure style="margin: 0;">
+            <video src="./media/push-chair.mp4" style="width: 100%; height: auto; border-radius: 12px; display: block;" controls muted playsinline autoplay loop></video>
+            <figcaption class="figure-caption" style="margin-top: 8px;">Pushing a chair while walking.</figcaption>
+        </figure>
+        <figure style="margin: 0;">
+            <video src="./media/sit-chair.mp4" style="width: 100%; height: auto; border-radius: 12px; display: block;" controls muted playsinline autoplay loop></video>
+            <figcaption class="figure-caption" style="margin-top: 8px;">Walking up to a chair and sitting down.</figcaption>
+        </figure>
+        <figure style="margin: 0;">
+            <video src="./media/hang-cloth.mp4" style="width: 100%; height: auto; border-radius: 12px; display: block;" controls muted playsinline autoplay loop></video>
+            <figcaption class="figure-caption" style="margin-top: 8px;">Reaching overhead to hang clothes.</figcaption>
+        </figure>
+    </div>
+
+    <div class="tagline" id="failure">Failure Cases</div>
+
+    <div class="section">
+        While HuMiT supports a wide range of whole-body skills, certain behaviors remain challenging. We highlight two representative failure modes below.
+    </div>
+
+    <div class="media-grid media-grid--two">
+        <figure style="margin: 0;">
+            <video src="./media/kneel-fail.mp4" style="width: 100%; height: auto; border-radius: 12px; display: block;" controls muted playsinline autoplay loop></video>
+            <figcaption class="figure-caption" style="margin-top: 8px;"><b>Kneeling failed.</b> Kneeling fails due to insufficient training trajectories covering ground-contact motions.</figcaption>
+        </figure>
+        <figure style="margin: 0;">
+            <video src="./media/water-bucket-fail.mp4" style="width: 100%; height: auto; border-radius: 12px; display: block;" controls muted playsinline autoplay loop></video>
+            <figcaption class="figure-caption" style="margin-top: 8px;"><b>Placing failed.</b> Precise placement occasionally fails due to scale mismatch between the human and the robot, reducing fine-grained wrist accuracy.</figcaption>
+        </figure>
+    </div>
+
+  </div> <!-- End of main-content div -->
+
+  <div class="footer">
+    Website template modified from <a href="https://videomimic.net/" target="_blank">VideoMimic</a>.
+  </div>
+
+</body>
+</html>
